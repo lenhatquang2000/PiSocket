@@ -1,0 +1,219 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "3193524f-000b-4a6a-bd7e-5c7ea2645799",
+        "name": "A cute chibi anime girl",
+        "prompt": "A cute chibi anime girl character, full body, standing pose, front view. She has big sparkling dark blue eyes, rosy cheeks with subtle freckles, and a gentle smile. Long dark navy blue hair flowing down. Wearing a winter outfit: a light blue puffer jacket with a fluffy white fur collar and white trim cuffs, dark blue mittens, a matching light blue beanie hat with a large white fluffy pom-pom on top, and small blue winter boots. 2D vector art style, clean thick outlines, solid colors, smooth shading, cute sticker design, isolated on a pure white background.",
+        "size": {
+          "width": 124,
+          "height": 124
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-05-27T04:18:09.667556+00:00"
+      },
+      "folder": "A_cute_chibi_anime_girl",
+      "frames": {
+        "rotations": {
+          "south": "A_cute_chibi_anime_girl/rotations/south.png",
+          "south-east": "A_cute_chibi_anime_girl/rotations/south-east.png",
+          "east": "A_cute_chibi_anime_girl/rotations/east.png",
+          "north-east": "A_cute_chibi_anime_girl/rotations/north-east.png",
+          "north": "A_cute_chibi_anime_girl/rotations/north.png",
+          "north-west": "A_cute_chibi_anime_girl/rotations/north-west.png",
+          "west": "A_cute_chibi_anime_girl/rotations/west.png",
+          "south-west": "A_cute_chibi_anime_girl/rotations/south-west.png"
+        },
+        "animations": {
+          "Walking-3023122c": {
+            "south": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_005.png"
+            ],
+            "north-east": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-east/frame_005.png"
+            ],
+            "east": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/east/frame_005.png"
+            ],
+            "west": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/west/frame_005.png"
+            ],
+            "south-east": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-east/frame_005.png"
+            ],
+            "north": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north/frame_005.png"
+            ],
+            "north-west": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/north-west/frame_005.png"
+            ],
+            "south-west": [
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Walking-3023122c/south-west/frame_005.png"
+            ]
+          },
+          "Breathing_Idle-905887d4": {
+            "south": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_003.png"
+            ],
+            "north-east": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-east/frame_003.png"
+            ],
+            "west": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/west/frame_003.png"
+            ],
+            "north-west": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north-west/frame_003.png"
+            ],
+            "east": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/east/frame_003.png"
+            ],
+            "south-east": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-east/frame_003.png"
+            ],
+            "north": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/north/frame_003.png"
+            ],
+            "south-west": [
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south-west/frame_003.png"
+            ]
+          },
+          "Fireball-4a198baf": {
+            "south": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south/frame_005.png"
+            ],
+            "south-west": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-west/frame_005.png"
+            ],
+            "south-east": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/south-east/frame_005.png"
+            ],
+            "north-east": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-east/frame_005.png"
+            ],
+            "east": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/east/frame_005.png"
+            ],
+            "north-west": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north-west/frame_005.png"
+            ],
+            "west": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/west/frame_005.png"
+            ],
+            "north": [
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_000.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_001.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_002.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_003.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_004.png",
+              "A_cute_chibi_anime_girl/animations/Fireball-4a198baf/north/frame_005.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-05-27T05:36:19.294786"
+}
