@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "564a466d-96e8-4337-a54d-bf969fc20b79",
+      "name": null,
+      "prompt": "Frame 6: Maximum size reached, violent fire petals spreading outward, intense heat ripples.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:30.642968"
+}

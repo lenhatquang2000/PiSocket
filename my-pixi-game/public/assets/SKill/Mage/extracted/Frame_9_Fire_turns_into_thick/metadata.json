@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "222e5682-1d42-4994-9b00-947f11d3d9e0",
+      "name": null,
+      "prompt": "Frame 9: Fire turns into thick orange and red smoke rings expanding outward.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:26.876610"
+}

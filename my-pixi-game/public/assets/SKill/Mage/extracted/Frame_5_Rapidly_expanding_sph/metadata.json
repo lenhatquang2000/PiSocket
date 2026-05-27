@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "edc65f06-d6a3-461d-acbc-65f441c5d23f",
+      "name": null,
+      "prompt": "Frame 5: Rapidly expanding sphere of fire, bright yellow core with jagged orange edges.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:37.619711"
+}

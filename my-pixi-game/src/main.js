@@ -79,8 +79,8 @@ import { io } from "socket.io-client";
     // Thêm texture player frame để dùng cho collider
     assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
 
-    // Thêm các frame cho skill bộc phá (18 frames)
-    for (let i = 0; i < 18; i++) {
+    // Thêm các frame cho skill bộc phá (16 frames)
+    for (let i = 0; i < 16; i++) {
         const frameName = i < 10 ? `00${i}` : `0${i}`;
         assetsToLoad.push(`/assets/Skills/Explosion/frame_${frameName}.png`);
     }
@@ -128,7 +128,7 @@ import { io } from "socket.io-client";
     });
 
     // Load explosion frames
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 16; i++) {
         const frameName = i < 10 ? `00${i}` : `0${i}`;
         explosionFrames.push(Assets.get(`/assets/Skills/Explosion/frame_${frameName}.png`));
     }

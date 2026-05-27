@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "0ad70704-3cb2-46ac-a8a0-59e1bcecde16",
+      "name": null,
+      "prompt": "Frame 4: Sudden burst! A large bright yellow and white flash filling the center.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:21.035196"
+}

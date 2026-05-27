@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "fa71c2a4-3f77-4201-be08-8a2da2e7e6ba",
+      "name": null,
+      "prompt": "Frame 8: The core starts to dim to deep orange, while the outer flames turn red and jagged.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:38.599717"
+}

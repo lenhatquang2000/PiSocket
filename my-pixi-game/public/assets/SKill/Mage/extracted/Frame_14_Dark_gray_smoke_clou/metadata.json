@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "3c5b28d9-cafe-4e4e-8cdf-00183fb733f2",
+      "name": null,
+      "prompt": "Frame 14: Dark gray smoke clouds starting to break into smaller pieces.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:28.734665"
+}

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "d45ccf48-f8bc-442d-9d47-398a52abbebd",
+      "name": null,
+      "prompt": "Frame 3: A medium-sized orange energy ball with small white cracks forming.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:35.529453"
+}

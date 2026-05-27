@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "1140f167-d7e1-4a71-b30a-7fb8b2636070",
+      "name": null,
+      "prompt": "Frame 15: Smoke thins out, light gray color, becoming more transparent.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:24.970879"
+}

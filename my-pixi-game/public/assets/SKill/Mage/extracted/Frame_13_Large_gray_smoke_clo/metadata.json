@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "11562832-a642-4424-99b3-b2219865a996",
+      "name": null,
+      "prompt": "Frame 13: Large gray smoke clouds expanding, fire is now only tiny glowing dots.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:25.960047"
+}

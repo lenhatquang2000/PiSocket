@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "0caf082e-017a-4e66-b2a8-3a99ba328e59",
+      "name": null,
+      "prompt": "Frame 16: Only few wisps of faint gray smoke remaining at the edges. Frame 17: Almost invisible light gray smoke particles fading into the air. Frame 18: Final frame: Transparent, nothing remains.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T09:59:24.116470"
+}
