@@ -1,13 +1,52 @@
 import { Server } from "socket.io";
 import http from "http";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const players = {};
 
 const server = http.createServer((req, res) => {
+  // Log mọi request để debug
+  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+
+  // Cho phép Editor từ port 5173 gửi dữ liệu về
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', playersCount: Object.keys(players).length }));
-  } else {
+  } 
+  // Endpoint để nhận dữ liệu va chạm từ Editor
+  else if (req.method === 'POST' && req.url === '/save-collision') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const filePath = path.join(__dirname, 'public/assets/Object/collision_data.json');
+        fs.writeFileSync(filePath, body);
+        console.log("✅ Đã tự động lưu va chạm vào:", filePath);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Saved successfully' }));
+      } catch (err) {
+        console.error("❌ Lỗi lưu file:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  else {
     res.writeHead(404);
     res.end();
   }

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collision Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: #2c3e50; color: white; }
+        #sidebar { width: 300px; background: #34495e; padding: 20px; overflow-y: auto; border-right: 2px solid #2c3e50; }
+        #canvas-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden; }
+        canvas { background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uPBAp85jW9jYGBgEEYS8PBaH0JCtP8XP7xeH1ICjZaHcMMB46QIEUqECuQAAAAASUVORK5CYII='); border: 2px solid #fff; image-rendering: pixelated; }
+        .obj-item { padding: 10px; margin-bottom: 5px; background: #2c3e50; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
+        .obj-item:hover { background: #1abc9c; }
+        .obj-item img { width: 40px; height: 40px; margin-right: 10px; object-fit: contain; }
+        #controls { position: absolute; bottom: 20px; left: 320px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 400px; }
+        .tool-row { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+        button.active { background: #e67e22; }
+        button { padding: 8px 15px; cursor: pointer; background: #1abc9c; border: none; color: white; border-radius: 4px; font-weight: bold; }
+        button:hover { background: #16a085; }
+        textarea { width: 100%; height: 100px; margin-top: 10px; background: #ecf0f1; border-radius: 4px; font-family: monospace; font-size: 10px; color: #333; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div id="sidebar">
+        <h3>Desert Objects</h3>
+        <div id="desert-list"></div>
+        <h3>Forest Objects</h3>
+        <div id="forest-list"></div>
+    </div>
+    <div id="canvas-container">
+        <canvas id="editorCanvas"></canvas>
+        <div id="controls">
+            <div class="tool-row">
+                <button id="brushBtn" class="active">Cọ vẽ</button>
+                <button id="eraserBtn">Cục tẩy</button>
+                <span>Size:</span>
+                <input type="range" id="brushSize" min="1" max="5" value="1">
+            </div>
+            <div class="tool-row">
+                <button id="clearBtn" style="background:#e74c3c">Xóa hết vùng vẽ</button>
+                <button id="saveBtn" style="background:#3498db">LƯU VÀO SERVER</button>
+            </div>
+            <textarea id="outputJson" readonly placeholder="Kết quả JSON sẽ hiện ở đây..."></textarea>
+        </div>
+    </div>
+    <script type="module" src="/src/editor.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { Application, Assets, AnimatedSprite, Container, Text, TextStyle, TilingSprite } from 'pixi.js';
+import { Application, Assets, AnimatedSprite, Container, Text, TextStyle, TilingSprite, Graphics } from 'pixi.js';
 import { io } from "socket.io-client";
 
 (async () => {
@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
     const socket = io(SOCKET_URL);
     const otherPlayers = {}; // Lưu trữ container của người chơi khác
+    const collidableObjects = []; // Lưu trữ các vật thể có va chạm
 
     // --- SOCKET CONNECTION LOGGING ---
     socket.on("connect", () => console.log("✅ Connected to server, id:", socket.id));
@@ -35,32 +36,64 @@ import { io } from "socket.io-client";
     const idleBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
     const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
 
-    // 1. Tải tất cả asset song song
+    // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
     const idleAnimations = {};
     const attackAnimations = {};
 
-    // Tải walking frames (6 frames mỗi hướng)
-    const loadAll = [];
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingBar = document.getElementById('loading-bar');
+    const loadingText = document.getElementById('loading-text');
+    const uiOverlay = document.getElementById('ui-overlay');
+
+    // 0. Tải cấu hình map đầu tiên để biết cần tải những gì tiếp theo
+    const mapConfig = await Assets.load('/assets/Map/map_config.json');
+
+    // Danh sách các file cần tải
+    const assetsToLoad = [];
     directions.forEach(dir => {
-        // Walking (6 frames)
-        for (let i = 0; i < 6; i++) {
-            loadAll.push(Assets.load(`${walkBaseDir}${dir}/frame_00${i}.png`));
-        }
-        // Idle (4 frames cho mọi hướng)
-        for (let i = 0; i < 4; i++) {
-            loadAll.push(Assets.load(`${idleBaseDir}${dir}/frame_00${i}.png`));
-        }
-        // Attack (6 frames cho mọi hướng)
-        for (let i = 0; i < 6; i++) {
-            loadAll.push(Assets.load(`${attackBaseDir}${dir}/frame_00${i}.png`));
-        }
+        for (let i = 0; i < 6; i++) assetsToLoad.push(`${walkBaseDir}${dir}/frame_00${i}.png`);
+        for (let i = 0; i < 4; i++) assetsToLoad.push(`${idleBaseDir}${dir}/frame_00${i}.png`);
+        for (let i = 0; i < 6; i++) assetsToLoad.push(`${attackBaseDir}${dir}/frame_00${i}.png`);
     });
+    
+    // Tải texture của tất cả các vùng map từ config
+    if (mapConfig.zones) {
+        mapConfig.zones.forEach(zone => {
+            assetsToLoad.push(zone.texture);
+        });
+    }
+    
+    // Thêm các object sa mạc
+    for (let i = 0; i < 12; i++) {
+        assetsToLoad.push(`/assets/Object/desert/desert_obj_${i}.png`);
+    }
 
-    // Tải hình nền map
-    loadAll.push(Assets.load('/assets/Map/Standra/Map1.png'));
+    // Thêm các object rừng (Forest)
+    for (let i = 0; i < 16; i++) {
+        assetsToLoad.push(`/assets/Object/Forest/forest_obj_${i}.png`);
+    }
 
-    await Promise.all(loadAll);
+    assetsToLoad.push('/assets/Object/collision_data.json');
+
+    let loadedCount = 0;
+    const totalAssets = assetsToLoad.length;
+
+    const loadWithProgress = async (url) => {
+        const asset = await Assets.load(url);
+        loadedCount++;
+        const progress = Math.floor((loadedCount / totalAssets) * 100);
+        loadingBar.style.width = `${progress}%`;
+        loadingText.innerText = `Đang tải tài nguyên... ${progress}%`;
+        return asset;
+    };
+
+    // Thực hiện tải toàn bộ
+    await Promise.all(assetsToLoad.map(url => loadWithProgress(url)));
+
+    // Ẩn loading, hiện UI chọn tên
+    loadingScreen.style.display = 'none';
+    uiOverlay.style.display = 'block';
 
     // Tổ chức lại textures vào object để dễ truy xuất
     directions.forEach(dir => {
@@ -81,21 +114,160 @@ import { io } from "socket.io-client";
         attackAnimations[dir] = aFrames;
     });
 
-    // --- TẠO HÌNH NỀN MAP ---
-    const bgTexture = Assets.get('/assets/Map/Standra/Map1.png');
-    const background = new TilingSprite({
-        texture: bgTexture,
-        width: app.screen.width,
-        height: app.screen.height,
-    });
-    background.tileScale.set(1.0, 1.0); // Giữ nguyên kích thước ảnh gốc
-    app.stage.addChildAt(background, 0); // Đảm bảo nền ở dưới cùng
+    // --- TẠO THẾ GIỚI GAME (World Container) ---
+    const world = new Container();
+    world.scale.set(1.5); // Phóng to thế giới để camera trông gần hơn
+    world.sortableChildren = true; // Cho phép sắp xếp theo zIndex
+    app.stage.addChild(world);
 
-    // Cập nhật kích thước nền khi resize
-    window.addEventListener('resize', () => {
-        background.width = app.screen.width;
-        background.height = app.screen.height;
+    // Đọc dữ liệu va chạm chi tiết
+    const collisionData = Assets.get('/assets/Object/collision_data.json') || {};
+    let showDebugColliders = false;
+    const debugGraphics = new Container();
+    world.addChild(debugGraphics);
+
+    // Rải các vùng đất --- (giữ nguyên logic cũ)
+    if (mapConfig.zones) {
+        mapConfig.zones.forEach(zone => {
+            // ... (code cũ tạo zoneSprite)
+            const texture = Assets.get(zone.texture);
+            const zoneSprite = new TilingSprite({
+                texture,
+                width: zone.width,
+                height: zone.height,
+            });
+            zoneSprite.x = zone.x;
+            zoneSprite.y = zone.y;
+            zoneSprite.zIndex = 0; // Nền đất luôn ở dưới cùng
+            world.addChild(zoneSprite);
+
+            // Rải vật thể đặc trưng vùng
+            const isSand = zone.name === "SandLand";
+            const count = isSand ? 40 : 60;
+            const prefix = isSand ? "desert" : "Forest";
+            const objKeyPrefix = isSand ? "desert_obj" : "forest_obj";
+            const maxIdx = isSand ? 12 : 16;
+
+            for (let i = 0; i < count; i++) {
+                const objIndex = Math.floor(Math.random() * maxIdx);
+                if (isSand && [2, 8, 10].includes(objIndex)) continue;
+
+                const path = `/assets/Object/${prefix}/${objKeyPrefix}_${objIndex}.png`;
+                const objTexture = Assets.get(path);
+                if (objTexture) {
+                    const sprite = new AnimatedSprite([objTexture]);
+                    sprite.x = zone.x + Math.random() * zone.width;
+                    sprite.y = zone.y + Math.random() * zone.height;
+                    
+                    let scale = 2.0;
+                    if (!isSand && [0, 1, 2, 5, 14].includes(objIndex)) scale = 5.0;
+                    else if (!isSand && objIndex === 10) scale = 1.5;
+                    else if (isSand && objIndex === 7) scale = 1.5;
+
+                    sprite.scale.set(scale);
+                    sprite.anchor.set(0.5, 0.5);
+                    if (scale === 5.0) sprite.anchor.set(0.5, 1);
+                    
+                    sprite.zIndex = 10; // Vật thể luôn ở trên nhân vật
+                    world.addChild(sprite);
+
+                    // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
+                    const hitPoints = collisionData[path];
+                    if (hitPoints) {
+                        collidableObjects.push({
+                            x: sprite.x,
+                            y: sprite.y,
+                            scale: scale,
+                            anchor: sprite.anchor,
+                            points: hitPoints,
+                            width: objTexture.width,
+                            height: objTexture.height
+                        });
+
+                        // Vẽ Debug nếu cần
+                        const g = new Graphics();
+                        g.beginFill(0xff0000, 0.5);
+                        hitPoints.forEach(p => {
+                            // Tính toán vị trí pixel dựa trên scale và anchor
+                            const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                            const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                            g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                        });
+                        g.visible = false;
+                        debugGraphics.addChild(g);
+                        sprite.debugBounds = g;
+                    }
+                }
+            }
+        });
+    }
+
+    // Nút Bật/Tắt Debug bằng phím H hoặc Nút trên màn hình
+    const debugBtn = document.getElementById('debug-btn');
+    const toggleDebug = () => {
+        showDebugColliders = !showDebugColliders;
+        debugGraphics.visible = showDebugColliders;
+        debugBtn.innerText = showDebugColliders ? "Hide Colliders (H)" : "Show Colliders (H)";
+        debugBtn.style.background = showDebugColliders ? "rgba(231, 76, 60, 0.8)" : "rgba(0,0,0,0.6)";
+        console.log("Debug Colliders:", showDebugColliders);
+    };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyH') toggleDebug();
     });
+    debugBtn.onclick = toggleDebug;
+
+    // Hàm kiểm tra va chạm Pixel-Perfect
+    const checkCollision = (char, obj) => {
+        // char: characterContainer, obj: item trong collidableObjects
+        const charR = 15; // Bán kính va chạm nhân vật
+        
+        // Kiểm tra nhanh bằng bounding box trước
+        const dist = Math.sqrt(Math.pow(char.x - obj.x, 2) + Math.pow(char.y - obj.y, 2));
+        if (dist > 200) return false; // Quá xa thì bỏ qua
+
+        for (let p of obj.points) {
+            const px = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
+            const py = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
+
+            // Nếu tâm nhân vật đi vào vùng pixel đỏ (có sai số nhỏ)
+            if (Math.abs(char.x - px) < (obj.scale) && Math.abs(char.y - py) < (obj.scale)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Rải các object cố định từ config vào thế giới
+    if (mapConfig.objects) {
+        mapConfig.objects.forEach(obj => {
+            const path = `/assets/Object/desert/desert_obj_${obj.id}.png`;
+            const objTexture = Assets.get(path);
+            if (objTexture) {
+                const sprite = new AnimatedSprite([objTexture]);
+                sprite.x = obj.x;
+                sprite.y = obj.y;
+                sprite.scale.set(obj.scale || 2.0);
+                sprite.anchor.set(0.5, 0.5);
+                sprite.zIndex = 10; // Vật thể luôn ở trên nhân vật
+                world.addChild(sprite);
+
+                // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
+                const hitPoints = collisionData[path];
+                if (hitPoints) {
+                    collidableObjects.push({
+                        x: sprite.x,
+                        y: sprite.y,
+                        scale: sprite.scale.x,
+                        anchor: sprite.anchor,
+                        points: hitPoints,
+                        width: objTexture.width,
+                        height: objTexture.height
+                    });
+                }
+            }
+        });
+    }
 
     // --- KHAI BÁO NHÂN VẬT CHÍNH ---
     let myGameId = "";
@@ -105,7 +277,8 @@ import { io } from "socket.io-client";
 
     const characterContainer = new Container();
     characterContainer.visible = false; // Ẩn cho đến khi nhấn nút
-    app.stage.addChild(characterContainer);
+    characterContainer.zIndex = 5; // Nhân vật ở giữa nền và vật thể
+    world.addChild(characterContainer); // Nhân vật thuộc về world
 
     const character = new AnimatedSprite(idleAnimations['south']);
     character.anchor.set(0.5, 0.5);
@@ -119,12 +292,11 @@ import { io } from "socket.io-client";
     nameTag.y = -60; // Điều chỉnh vị trí tên trên đầu
     characterContainer.addChild(nameTag);
 
-    characterContainer.x = app.screen.width / 2;
-    characterContainer.y = app.screen.height / 2;
-    characterContainer.scale.set(1.0);
+    characterContainer.x = 500;
+    characterContainer.y = 500;
+    characterContainer.scale.set(0.7);
 
     // --- XỬ LÝ NÚT TẠO NHÂN VẬT ---
-    const uiOverlay = document.getElementById('ui-overlay');
     const gameIdInput = document.getElementById('game-id');
     const createBtn = document.getElementById('create-btn');
 
@@ -169,12 +341,15 @@ import { io } from "socket.io-client";
 
         container.x = data.x;
         container.y = data.y;
-        app.stage.addChild(container);
+        container.scale.set(0.7);
+        container.zIndex = 5; // Người chơi khác cũng ở lớp giữa
+        world.addChild(container); 
+        
         otherPlayers[id] = { 
             container, 
             sprite, 
             tag,
-            isAttacking: false, // Trạng thái bận tấn công
+            isAttacking: false, 
             currentDir: data.dir || 'south',
             currentIsMoving: data.isMoving || false
         };
@@ -256,7 +431,7 @@ import { io } from "socket.io-client";
     // Người chơi thoát ra
     socket.on("playerDisconnected", (id) => {
         if (otherPlayers[id]) {
-            app.stage.removeChild(otherPlayers[id].container);
+            world.removeChild(otherPlayers[id].container);
             delete otherPlayers[id];
         }
     });
@@ -319,8 +494,36 @@ import { io } from "socket.io-client";
             dy /= length;
 
             const moveSpeed = 4 * ticker.deltaTime;
+            
+            // Lưu vị trí cũ
+            const oldX = characterContainer.x;
+            const oldY = characterContainer.y;
+
+            // Thử di chuyển theo trục X
             characterContainer.x += dx * moveSpeed;
+            let collisionX = false;
+            for (let obj of collidableObjects) {
+                if (checkCollision(characterContainer, obj)) {
+                    collisionX = true;
+                    break;
+                }
+            }
+            if (collisionX) characterContainer.x = oldX; // Nếu va chạm thì trả về vị trí cũ
+
+            // Thử di chuyển theo trục Y
             characterContainer.y += dy * moveSpeed;
+            let collisionY = false;
+            for (let obj of collidableObjects) {
+                if (checkCollision(characterContainer, obj)) {
+                    collisionY = true;
+                    break;
+                }
+            }
+            if (collisionY) characterContainer.y = oldY; // Nếu va chạm thì trả về vị trí cũ
+
+            if (characterContainer.x !== oldX || characterContainer.y !== oldY) {
+                moved = true;
+            }
 
             let newDir = '';
             if (dy < 0) newDir += 'north';
@@ -344,6 +547,11 @@ import { io } from "socket.io-client";
                 character.play();
             }
         }
+
+        // --- LOGIC CAMERA FOLLOW ---
+        // Giữ nhân vật ở giữa màn hình bằng cách di chuyển cả 'world' (có tính đến tỉ lệ phóng to)
+        world.x = (app.screen.width / 2) - (characterContainer.x * world.scale.x);
+        world.y = (app.screen.height / 2) - (characterContainer.y * world.scale.y);
 
         // Gửi dữ liệu vị trí lên server nếu có thay đổi (CHỈ movement)
         if (moved || (lastSentData.isMoving !== isMoving) || (lastSentData.dir !== currentDir)) {

@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "0032af59-fb6c-40c6-b5ae-007452f75904",
+      "name": null,
+      "prompt": "Seamless top-down ground texture, lush vibrant green grass with tiny hand-painted daisies and small clover patches, stylized anime art style, clean and bright colors, high quality, 2D game asset, flat orthographic view, no perspective, tiling texture.",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-27T06:40:58.532525"
+}

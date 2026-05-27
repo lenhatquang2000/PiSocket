@@ -7,12 +7,24 @@
     <title>my-pixi-game</title>
   </head>
   <body>
-    <div id="ui-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 100;">
+    <!-- Màn hình Loading -->
+    <div id="loading-screen" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1099bb; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; color: white; font-family: Arial, sans-serif;">
+      <div style="width: 200px; height: 10px; background: rgba(255,255,255,0.3); border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
+        <div id="loading-bar" style="width: 0%; height: 100%; background: white; transition: width 0.3s;"></div>
+      </div>
+      <div id="loading-text">Đang tải tài nguyên... 0%</div>
+    </div>
+
+    <div id="ui-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 100; display: none;">
       <h2 style="margin-top: 0;">Vào Game</h2>
       <input type="text" id="game-id" placeholder="Nhập Game ID (Tên)" style="padding: 10px; margin-bottom: 10px; width: 200px; display: block; border: 1px solid #ccc; border-radius: 5px;">
       <button id="create-btn" style="padding: 10px 20px; background: #1099bb; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Tạo nhân vật</button>
     </div>
     <div id="app"></div>
+
+    <!-- Nút Debug va chạm -->
+    <button id="debug-btn" style="position: absolute; bottom: 20px; right: 20px; padding: 10px 15px; background: rgba(0,0,0,0.6); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;">Show Colliders (H)</button>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
