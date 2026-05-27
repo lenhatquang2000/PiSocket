@@ -1,15 +1,23 @@
 import { Server } from "socket.io";
 import http from "http";
 
-const server = http.createServer();
+const players = {};
+
+const server = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', playersCount: Object.keys(players).length }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   }
 });
-
-const players = {};
 
 io.on("connection", (socket) => {
   console.log("A player connected:", socket.id);
