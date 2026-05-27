@@ -142,6 +142,18 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Event riêng cho kỹ năng (skill) — broadcast với tọa độ mục tiêu
+  socket.on("playerSkill", (skillData) => {
+    if (players[socket.id]) {
+      console.log(`Player ${players[socket.id].name} uses skill at (${skillData.targetX}, ${skillData.targetY})`);
+      socket.broadcast.emit("playerSkill", { 
+        id: socket.id, 
+        targetX: skillData.targetX, 
+        targetY: skillData.targetY 
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("Player disconnected:", socket.id);
     delete players[socket.id];

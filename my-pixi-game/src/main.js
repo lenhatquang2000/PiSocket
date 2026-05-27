@@ -474,13 +474,19 @@ import { io } from "socket.io-client";
             const rect = app.view.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left);
             const mouseY = (e.clientY - rect.top);
-            
+
             // Tính toán vị trí trong world dựa trên camera (world.x, world.y) và scale
             const worldX = (mouseX - world.x) / world.scale.x;
             const worldY = (mouseY - world.y) / world.scale.y;
-            
+
             playExplosionSkill(worldX, worldY);
-            
+
+            // Gửi event skill cho người chơi khác
+            socket.emit("playerSkill", {
+                targetX: worldX,
+                targetY: worldY
+            });
+
             // Trigger animation tấn công của nhân vật
             if (!character.playing || character.textures !== attackAnimations[currentDir]) {
                 character.textures = attackAnimations[currentDir];
@@ -678,7 +684,7 @@ import { io } from "socket.io-client";
             p.sprite.animationSpeed = 0.15;
             p.sprite.loop = false;
             p.sprite.gotoAndPlay(0);
-            
+
             p.sprite.onComplete = () => {
                 p.isAttacking = false;
                 p.sprite.loop = true;
@@ -694,6 +700,12 @@ import { io } from "socket.io-client";
                 p.sprite.play();
             };
         }
+    });
+
+    // NHẬN EVENT KỸ NĂNG (SKILL) từ người chơi khác
+    socket.on("playerSkill", (data) => {
+        console.log("Other player uses skill:", data.id, "at:", data.targetX, data.targetY);
+        playExplosionSkill(data.targetX, data.targetY);
     });
 
     // Người chơi thoát ra
