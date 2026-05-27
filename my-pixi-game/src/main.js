@@ -468,8 +468,10 @@ import { io } from "socket.io-client";
     };
 
     // Lắng nghe click chuột trái để tung chiêu
-    app.view.addEventListener('mousedown', (e) => {
+    app.canvas.addEventListener('pointerdown', (e) => {
         if (e.button === 0 && isGameStarted) { // 0 là chuột trái
+            e.preventDefault(); // Ngăn chặn các sự kiện mặc định khác
+            
             // Kiểm tra có skill không
             if (playerSkills.length === 0) {
                 console.warn("⚠️ Bạn chưa có kỹ năng nào!");
@@ -512,7 +514,7 @@ import { io } from "socket.io-client";
             console.log(`🔄 Cooldown reset! Elapsed: 0, Cooldown time: ${skill.cooldown_time}s`);
 
             // Chuyển đổi tọa độ click màn hình sang tọa độ trong world
-            const rect = app.view.getBoundingClientRect();
+            const rect = app.canvas.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left);
             const mouseY = (e.clientY - rect.top);
 
@@ -529,13 +531,17 @@ import { io } from "socket.io-client";
                 targetY: worldY
             });
 
-            // Trigger animation tấn công của nhân vật
-            if (!character.playing || character.textures !== attackAnimations[currentDir]) {
+            // Trigger animation tấn công của nhân vật - CHỈ CHẠY KHI ĐỦ ĐIỀU KIỆN SKILL
+            if (!isAttacking) {
+                isAttacking = true;
+                isMoving = false; // Ngừng di chuyển ngay lập tức
+                
                 character.textures = attackAnimations[currentDir];
                 character.animationSpeed = 0.2; // Tốc độ animation attack
                 character.loop = false;
                 character.gotoAndPlay(0);
                 character.onComplete = () => {
+                    isAttacking = false; // Mở khóa di chuyển
                     character.textures = idleAnimations[currentDir];
                     character.animationSpeed = 0.05; // Tốc độ idle
                     character.loop = true;
@@ -550,6 +556,7 @@ import { io } from "socket.io-client";
     let isGameStarted = false;
     let currentDir = 'south';
     let isMoving = false;
+    let isAttacking = false; // Khóa di chuyển khi đang tấn công
     let isSkillOnCooldown = false; // Đang trong cooldown
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
@@ -1089,8 +1096,8 @@ import { io } from "socket.io-client";
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // XỎ LÝ TẤN CÔNG (Click chuột trái)
-    let isAttacking = false;
+    // XỬ LÝ TẤN CÔNG (Click chuột trái)
+    // Biến isAttacking đã được khai báo ở trên phần KHAI BÁO NHÂN VẬT CHÍNH
     // Event listener cũ đã được thay thế bằng app.view.addEventListener ở trên
     // Không cần event listener window.addEventListener nữa
 
@@ -1099,8 +1106,21 @@ import { io } from "socket.io-client";
     app.ticker.add((ticker) => {
         if (!isGameStarted) return; // Chỉ chạy khi đã nhấn nút
 
-        // KHÔNG cho phép di chuyển nếu đang tấn công
-        if (isAttacking) return;
+        // Nếu đang tấn công thì không xử lý di chuyển
+        if (isAttacking) {
+            if (isMoving) {
+                isMoving = false;
+                // Gửi update để người chơi khác thấy mình đứng yên tấn công
+                socket.emit("playerMovement", {
+                    x: characterContainer.x,
+                    y: characterContainer.y,
+                    dir: currentDir,
+                    isMoving: false,
+                    name: myGameId
+                });
+            }
+            return;
+        }
 
         let dx = 0;
         let dy = 0;
@@ -1254,9 +1274,9 @@ import { io } from "socket.io-client";
             const cooldownData = skillCooldowns[skill.skill_id];
             if (cooldownData) {
                 if (cooldownData.elapsed < cooldownData.cooldownTime) {
-                    cooldownData.elapsed += ticker.deltaTime;
+                    cooldownData.elapsed += ticker.deltaTime / 60;
                     // Debug log
-                    if (cooldownData.elapsed % 1 < ticker.deltaTime) { // Log mỗi giây
+                    if (Math.floor(cooldownData.elapsed) > Math.floor(cooldownData.elapsed - ticker.deltaTime / 60)) {
                         console.log(`⏱️ Cooldown: ${cooldownData.elapsed.toFixed(1)}/${cooldownData.cooldownTime}s`);
                     }
                 } else {
