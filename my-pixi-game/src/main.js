@@ -31,9 +31,9 @@ import { io } from "socket.io-client";
     });
 
     const directions = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
-    const walkBaseDir = '/src/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/';
-    const idleBaseDir = '/src/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
-    const attackBaseDir = '/src/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
+    const walkBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/';
+    const idleBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
+    const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
 
     // 1. Tải tất cả asset song song
     const walkAnimations = {};
@@ -58,7 +58,7 @@ import { io } from "socket.io-client";
     });
 
     // Tải hình nền map
-    loadAll.push(Assets.load('/src/assets/Map/Standra/Map1.png'));
+    loadAll.push(Assets.load('/assets/Map/Standra/Map1.png'));
 
     await Promise.all(loadAll);
 
@@ -82,7 +82,7 @@ import { io } from "socket.io-client";
     });
 
     // --- TẠO HÌNH NỀN MAP ---
-    const bgTexture = Assets.get('/src/assets/Map/Standra/Map1.png');
+    const bgTexture = Assets.get('/assets/Map/Standra/Map1.png');
     const background = new TilingSprite({
         texture: bgTexture,
         width: app.screen.width,
