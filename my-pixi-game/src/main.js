@@ -41,6 +41,7 @@ import { io } from "socket.io-client";
     const walkAnimations = {};
     const idleAnimations = {};
     const attackAnimations = {};
+    const explosionFrames = [];
 
     const loadingScreen = document.getElementById('loading-screen');
     const loadingBar = document.getElementById('loading-bar');
@@ -78,6 +79,12 @@ import { io } from "socket.io-client";
     // Thêm texture player frame để dùng cho collider
     assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
 
+    // Thêm các frame cho skill bộc phá (18 frames)
+    for (let i = 0; i < 18; i++) {
+        const frameName = i < 10 ? `00${i}` : `0${i}`;
+        assetsToLoad.push(`/assets/Skills/Explosion/frame_${frameName}.png`);
+    }
+
     assetsToLoad.push('/assets/Object/collision_data.json');
 
     let loadedCount = 0;
@@ -99,8 +106,10 @@ import { io } from "socket.io-client";
     loadingScreen.style.display = 'none';
     uiOverlay.style.display = 'block';
 
+    // --- TỔ CHỨC ANIMATIONS ---
     // Tổ chức lại textures vào object để dễ truy xuất
     directions.forEach(dir => {
+        // ... existing animation loading ...
         const wFrames = [];
         const iFrames = [];
         const aFrames = [];
@@ -117,6 +126,12 @@ import { io } from "socket.io-client";
         idleAnimations[dir] = iFrames;
         attackAnimations[dir] = aFrames;
     });
+
+    // Load explosion frames
+    for (let i = 0; i < 18; i++) {
+        const frameName = i < 10 ? `00${i}` : `0${i}`;
+        explosionFrames.push(Assets.get(`/assets/Skills/Explosion/frame_${frameName}.png`));
+    }
 
     // --- TẠO THẾ GIỚI GAME (World Container) ---
     const world = new Container();
@@ -416,12 +431,77 @@ import { io } from "socket.io-client";
         });
     }
 
+    // --- MAGE SKILL VFX (EXPLOSION) ---
+    const playExplosionSkill = (targetX, targetY) => {
+        const explosion = new AnimatedSprite(explosionFrames);
+        explosion.anchor.set(0.5, 0.5);
+        explosion.animationSpeed = 0.3;
+        explosion.loop = false;
+        explosion.scale.set(2.0); // Làm skill to ra một chút
+        
+        // Vị trí skill (tương đối trong world)
+        explosion.x = targetX;
+        explosion.y = targetY;
+        
+        // Luôn ở trên cùng
+        explosion.zIndex = 10000;
+        
+        explosion.onComplete = () => {
+            world.removeChild(explosion);
+            explosion.destroy();
+        };
+
+        // Rung màn hình khi tới frame bùng nổ (frame 4-6)
+        explosion.onFrameChange = (currentFrame) => {
+            if (currentFrame >= 4 && currentFrame <= 8) {
+                const intensity = 8;
+                shakeOffset.x = (Math.random() - 0.5) * intensity;
+                shakeOffset.y = (Math.random() - 0.5) * intensity;
+            } else {
+                shakeOffset.x = 0;
+                shakeOffset.y = 0;
+            }
+        };
+
+        world.addChild(explosion);
+        explosion.play();
+    };
+
+    // Lắng nghe click chuột trái để tung chiêu
+    app.view.addEventListener('mousedown', (e) => {
+        if (e.button === 0 && isGameStarted) { // 0 là chuột trái
+            // Chuyển đổi tọa độ click màn hình sang tọa độ trong world
+            const rect = app.view.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left);
+            const mouseY = (e.clientY - rect.top);
+            
+            // Tính toán vị trí trong world dựa trên camera (world.x, world.y) và scale
+            const worldX = (mouseX - world.x) / world.scale.x;
+            const worldY = (mouseY - world.y) / world.scale.y;
+            
+            playExplosionSkill(worldX, worldY);
+            
+            // Trigger animation tấn công của nhân vật
+            if (!character.playing || character.textures !== attackAnimations[currentDir]) {
+                character.textures = attackAnimations[currentDir];
+                character.loop = false;
+                character.gotoAndPlay(0);
+                character.onComplete = () => {
+                    character.textures = idleAnimations[currentDir];
+                    character.loop = true;
+                    character.play();
+                };
+            }
+        }
+    });
+
     // --- KHAI BÁO NHÂN VẬT CHÍNH ---
     let myGameId = "";
     let isGameStarted = false;
     let currentDir = 'south';
     let isMoving = false;
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
+    let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
 
     const characterContainer = new Container();
     characterContainer.visible = false; // Ẩn cho đến khi nhấn nút
@@ -738,8 +818,8 @@ import { io } from "socket.io-client";
 
         // --- LOGIC CAMERA FOLLOW ---
         // Giữ nhân vật ở giữa màn hình bằng cách di chuyển cả 'world' (có tính đến tỉ lệ phóng to)
-        world.x = (app.screen.width / 2) - (characterContainer.x * world.scale.x);
-        world.y = (app.screen.height / 2) - (characterContainer.y * world.scale.y);
+        world.x = (app.screen.width / 2) - (characterContainer.x * world.scale.x) + shakeOffset.x;
+        world.y = (app.screen.height / 2) - (characterContainer.y * world.scale.y) + shakeOffset.y;
 
         // --- DEPTH SORTING ---
         // Cập nhật zIndex cho objects trước (chỉ dựa trên Y)
