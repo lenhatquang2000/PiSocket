@@ -3,11 +3,15 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
+import { initDatabase } from './Server/database.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername } from './Server/playerManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const players = {};
+
+await initDatabase();
 
 const server = http.createServer((req, res) => {
   // Log mọi request để debug
@@ -27,6 +31,56 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', playersCount: Object.keys(players).length }));
+  }
+  // Check if account exists
+  else if (req.method === 'POST' && req.url === '/check-account') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username } = JSON.parse(body);
+        const validation = validateUsername(username);
+        if (!validation.valid) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ exists: false, error: validation.message }));
+          return;
+        }
+
+        const normalizedUsername = username.trim();
+        const exists = checkAccount(normalizedUsername);
+        const playerState = exists ? getSavedPlayerState(normalizedUsername) : null;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ exists, playerState }));
+      } catch (err) {
+        console.error("❌ Lỗi check account:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Create new account
+  else if (req.method === 'POST' && req.url === '/create-account') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username } = JSON.parse(body);
+        const validation = validateUsername(username);
+        if (!validation.valid) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: validation.message }));
+          return;
+        }
+
+        const success = createNewAccount(username.trim());
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi create account:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
   } 
   // Endpoint để nhận dữ liệu va chạm từ Editor
   else if (req.method === 'POST' && req.url === '/save-collision') {
@@ -109,14 +163,23 @@ io.on("connection", (socket) => {
 
   // Chỉ khi người chơi nhấn nút "Tạo nhân vật" (gửi newPlayer)
   socket.on("newPlayer", (playerData) => {
-    // 1. Lưu dữ liệu người chơi mới
-    players[socket.id] = playerData;
+    // 1. Lưu dữ liệu người chơi mới với stats
+    players[socket.id] = {
+      ...playerData,
+      stats: playerData.stats || {
+        hp: 100,
+        maxHp: 100,
+        mp: 50,
+        maxMp: 50,
+        moveSpeed: 4
+      }
+    };
     
     // 2. Gửi danh sách TẤT CẢ người chơi hiện tại cho người chơi MỚI này
     socket.emit("currentPlayers", players);
 
     // 3. Thông báo cho những người chơi CŨ biết có người MỚI tham gia
-    socket.broadcast.emit("newPlayer", { id: socket.id, ...playerData });
+    socket.broadcast.emit("newPlayer", { id: socket.id, ...players[socket.id] });
     
     console.log(`Player ${playerData.name} (${socket.id}) joined the game.`);
   });
@@ -156,6 +219,12 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("Player disconnected:", socket.id);
+    if (players[socket.id]) {
+      const saved = saveCurrentPlayerState(players[socket.id]);
+      if (saved) {
+        console.log(`Saved position for ${players[socket.id].name}: (${players[socket.id].x}, ${players[socket.id].y})`);
+      }
+    }
     delete players[socket.id];
     io.emit("playerDisconnected", socket.id);
   });

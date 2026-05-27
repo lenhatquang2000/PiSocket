@@ -508,6 +508,29 @@ import { io } from "socket.io-client";
     let isMoving = false;
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
+    let playerStats = {
+        hp: 100,
+        maxHp: 100,
+        mp: 50,
+        maxMp: 50,
+        moveSpeed: 4
+    };
+
+    // --- HÀM CẬP NHẬT UI HP/MP ---
+    const updateStatsUI = () => {
+        const hpPercent = (playerStats.hp / playerStats.maxHp) * 100;
+        const mpPercent = (playerStats.mp / playerStats.maxMp) * 100;
+        
+        const hpBar = document.getElementById('hp-bar');
+        const mpBar = document.getElementById('mp-bar');
+        const hpText = document.getElementById('hp-text');
+        const mpText = document.getElementById('mp-text');
+        
+        if (hpBar) hpBar.style.width = `${Math.max(0, Math.min(100, hpPercent))}%`;
+        if (mpBar) mpBar.style.width = `${Math.max(0, Math.min(100, mpPercent))}%`;
+        if (hpText) hpText.textContent = `${Math.max(0, playerStats.hp)}/${playerStats.maxHp}`;
+        if (mpText) mpText.textContent = `${Math.max(0, playerStats.mp)}/${playerStats.maxMp}`;
+    };
 
     const characterContainer = new Container();
     characterContainer.visible = false; // Ẩn cho đến khi nhấn nút
@@ -575,25 +598,85 @@ import { io } from "socket.io-client";
     const gameIdInput = document.getElementById('game-id');
     const createBtn = document.getElementById('create-btn');
 
-    createBtn.addEventListener('click', () => {
-        myGameId = gameIdInput.value || "Player_" + Math.floor(Math.random() * 1000);
-        nameTag.text = myGameId;
+    createBtn.addEventListener('click', async () => {
+        const username = gameIdInput.value.trim();
         
-        uiOverlay.style.display = 'none'; // Ẩn UI
-        characterContainer.visible = true; // Hiện nhân vật
-        isGameStarted = true;
+        if (!username) {
+            alert("Vui lòng nhập username!");
+            return;
+        }
 
-        console.log("Game started as:", myGameId);
+        createBtn.disabled = true;
+        createBtn.textContent = "Đang kiểm tra...";
 
-        // Báo cho server biết mình tham gia CHỈ KHI nhấn nút
-        socket.emit("newPlayer", {
-            x: characterContainer.x,
-            y: characterContainer.y,
-            dir: currentDir,
-            isMoving: false,
-            isAttacking: false,
-            name: myGameId
-        });
+        try {
+            // Check if account exists
+            const checkResponse = await fetch(`${SOCKET_URL}/check-account`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const checkData = await checkResponse.json();
+
+            if (!checkData.exists) {
+                // Create new account
+                createBtn.textContent = "Đang tạo tài khoản...";
+                const createResponse = await fetch(`${SOCKET_URL}/create-account`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const createData = await createResponse.json();
+
+                if (!createData.success) {
+                    alert("Lỗi tạo tài khoản!");
+                    createBtn.disabled = false;
+                    createBtn.textContent = "Tạo nhân vật";
+                    return;
+                }
+            }
+
+            // Account exists or created successfully, proceed to game
+            myGameId = username;
+            if (checkData.playerState) {
+                characterContainer.x = Number(checkData.playerState.x) || 500;
+                characterContainer.y = Number(checkData.playerState.y) || 500;
+                currentDir = checkData.playerState.dir || 'south';
+                character.textures = idleAnimations[currentDir];
+                character.play();
+                
+                // Load stats from saved state
+                playerStats.hp = Number(checkData.playerState.hp) || 100;
+                playerStats.maxHp = Number(checkData.playerState.max_hp) || 100;
+                playerStats.mp = Number(checkData.playerState.mp) || 50;
+                playerStats.maxMp = Number(checkData.playerState.max_mp) || 50;
+                playerStats.moveSpeed = Number(checkData.playerState.move_speed) || 4;
+            }
+            nameTag.text = myGameId;
+            updateStatsUI(); // Cập nhật UI HP/MP
+            
+            uiOverlay.style.display = 'none'; // Ẩn UI
+            characterContainer.visible = true; // Hiện nhân vật
+            isGameStarted = true;
+
+            console.log("Game started as:", myGameId);
+
+            // Báo cho server biết mình tham gia CHỈ KHI nhấn nút
+            socket.emit("newPlayer", {
+                x: characterContainer.x,
+                y: characterContainer.y,
+                dir: currentDir,
+                isMoving: false,
+                isAttacking: false,
+                name: myGameId,
+                stats: playerStats
+            });
+        } catch (err) {
+            console.error("Lỗi kết nối server:", err);
+            alert("Lỗi kết nối server!");
+            createBtn.disabled = false;
+            createBtn.textContent = "Tạo nhân vật";
+        }
     });
 
     // Hàm tạo nhân vật cho người chơi khác
@@ -718,7 +801,29 @@ import { io } from "socket.io-client";
 
     // --- XỬ LÝ DI CHUYỂN ---
     const keys = {};
-    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        
+        // Test HP/MP - Phím 1 để giảm HP, Phím 2 để tăng HP, Phím 3 để giảm MP, Phím 4 để tăng MP
+        if (isGameStarted) {
+            if (e.code === 'Digit1') {
+                playerStats.hp = Math.max(0, playerStats.hp - 10);
+                console.log(`HP: ${playerStats.hp}/${playerStats.maxHp}`);
+            }
+            if (e.code === 'Digit2') {
+                playerStats.hp = Math.min(playerStats.maxHp, playerStats.hp + 10);
+                console.log(`HP: ${playerStats.hp}/${playerStats.maxHp}`);
+            }
+            if (e.code === 'Digit3') {
+                playerStats.mp = Math.max(0, playerStats.mp - 5);
+                console.log(`MP: ${playerStats.mp}/${playerStats.maxMp}`);
+            }
+            if (e.code === 'Digit4') {
+                playerStats.mp = Math.min(playerStats.maxMp, playerStats.mp + 5);
+                console.log(`MP: ${playerStats.mp}/${playerStats.maxMp}`);
+            }
+        }
+    });
     window.addEventListener('keyup', e => keys[e.code] = false);
 
     // XỎ LÝ TẤN CÔNG (Click chuột trái)
@@ -773,7 +878,7 @@ import { io } from "socket.io-client";
             dx /= length;
             dy /= length;
 
-            const moveSpeed = 4 * ticker.deltaTime;
+            const moveSpeed = playerStats.moveSpeed * ticker.deltaTime;
             
             // Lưu vị trí cũ
             const oldX = characterContainer.x;
@@ -901,5 +1006,8 @@ import { io } from "socket.io-client";
                 isMoving: isMoving
             };
         }
+
+        // Cập nhật UI HP/MP
+        updateStatsUI();
     });
 })();

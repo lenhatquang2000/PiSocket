@@ -25,6 +25,25 @@
     <!-- Nút Debug va chạm -->
     <button id="debug-btn" style="position: absolute; bottom: 20px; right: 20px; padding: 10px 15px; background: rgba(0,0,0,0.6); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;">Show Colliders (H)</button>
 
+    <!-- UI HP/MP cố định góc trên bên trái -->
+    <div id="stats-panel" style="position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; border: 2px solid #1099bb; z-index: 150; font-family: Arial, sans-serif; min-width: 200px;">
+      <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">
+        <span>❤️ HP: </span>
+        <span id="hp-text">100/100</span>
+      </div>
+      <div style="width: 100%; height: 20px; background: rgba(255, 255, 255, 0.2); border-radius: 4px; overflow: hidden; margin-bottom: 10px;">
+        <div id="hp-bar" style="width: 100%; height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff8787); transition: width 0.3s ease;"></div>
+      </div>
+      
+      <div style="color: #4ecdc4; font-weight: bold; margin-bottom: 10px; font-size: 14px;">
+        <span>✨ MP: </span>
+        <span id="mp-text">50/50</span>
+      </div>
+      <div style="width: 100%; height: 20px; background: rgba(255, 255, 255, 0.2); border-radius: 4px; overflow: hidden;">
+        <div id="mp-bar" style="width: 100%; height: 100%; background: linear-gradient(90deg, #4ecdc4, #45b7aa); transition: width 0.3s ease;"></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
