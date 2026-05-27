@@ -9,7 +9,8 @@ let currentPath = "";
 let isDrawing = false;
 let currentMode = "brush"; // "brush" or "eraser"
 let brushSize = 1;
-let hitboxes = {}; // { path: [ {x, y}, ... ] } (danh sách các pixel va chạm)
+let currentColliderType = "normal"; // "normal", "z_index_up", "z_index_down"
+let hitboxes = {}; // { path: { normal: [{x,y}], z_index_up: [{x,y}], z_index_down: [{x,y}] } }
 
 // Các nút điều khiển
 const brushBtn = document.getElementById('brushBtn');
@@ -20,10 +21,45 @@ const clearBtn = document.getElementById('clearBtn');
 brushBtn.onclick = () => { currentMode = "brush"; brushBtn.classList.add('active'); eraserBtn.classList.remove('active'); };
 eraserBtn.onclick = () => { currentMode = "eraser"; eraserBtn.classList.add('active'); brushBtn.classList.remove('active'); };
 brushSizeInput.onchange = (e) => { brushSize = parseInt(e.target.value); };
-clearBtn.onclick = () => { if(currentPath) { hitboxes[currentPath] = []; draw(); updateOutput(); } };
+
+// Collider type buttons
+const colliderNormalBtn = document.getElementById('colliderNormalBtn');
+const colliderGreenBtn = document.getElementById('colliderGreenBtn');
+const colliderYellowBtn = document.getElementById('colliderYellowBtn');
+
+colliderNormalBtn.onclick = () => {
+    currentColliderType = "normal";
+    colliderNormalBtn.classList.add('active');
+    colliderGreenBtn.classList.remove('active');
+    colliderYellowBtn.classList.remove('active');
+};
+colliderGreenBtn.onclick = () => {
+    currentColliderType = "z_index_up";
+    colliderNormalBtn.classList.remove('active');
+    colliderGreenBtn.classList.add('active');
+    colliderYellowBtn.classList.remove('active');
+};
+colliderYellowBtn.onclick = () => {
+    currentColliderType = "z_index_down";
+    colliderNormalBtn.classList.remove('active');
+    colliderGreenBtn.classList.remove('active');
+    colliderYellowBtn.classList.add('active');
+};
+
+clearBtn.onclick = () => {
+    if(currentPath) {
+        hitboxes[currentPath] = { normal: [], z_index_up: [], z_index_down: [] };
+        draw();
+        updateOutput();
+    }
+};
 
 // Tải danh sách vật thể
 const loadLists = () => {
+    // Player collider
+    const playerPath = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png';
+    createItem(playerPath, document.getElementById('player-list'), 'Player Collider');
+
     // ... (giữ nguyên)
     for (let i = 0; i < 12; i++) {
         const path = `/assets/Object/desert/desert_obj_${i}.png`;
@@ -35,10 +71,11 @@ const loadLists = () => {
     }
 };
 
-const createItem = (path, parent) => {
+const createItem = (path, parent, customLabel = null) => {
     const div = document.createElement('div');
     div.className = 'obj-item';
-    div.innerHTML = `<img src="${path}"><span>${path.split('/').pop()}</span>`;
+    const label = customLabel || path.split('/').pop();
+    div.innerHTML = `<img src="${path}"><span>${label}</span>`;
     div.onclick = () => selectObject(path);
     parent.appendChild(div);
 };
@@ -50,7 +87,9 @@ const selectObject = (path) => {
         currentImg = img;
         canvas.width = img.width * 10; // Zoom 10 lần
         canvas.height = img.height * 10;
-        if (!hitboxes[currentPath]) hitboxes[currentPath] = [];
+        if (!hitboxes[currentPath]) {
+            hitboxes[currentPath] = { normal: [], z_index_up: [], z_index_down: [] };
+        }
         draw();
     };
     img.src = path;
@@ -59,16 +98,30 @@ const selectObject = (path) => {
 const draw = () => {
     if (!currentImg) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Vẽ ảnh nền (vật thể)
     ctx.globalAlpha = 0.8;
     ctx.drawImage(currentImg, 0, 0, canvas.width, canvas.height);
     ctx.globalAlpha = 1.0;
 
-    // Vẽ các pixel đã tô
-    const points = hitboxes[currentPath] || [];
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.6)'; // Màu đỏ cho vùng va chạm
-    points.forEach(p => {
+    // Vẽ các pixel đã tô theo loại collider
+    const data = hitboxes[currentPath] || { normal: [], z_index_up: [], z_index_down: [] };
+
+    // Vẽ collider thường (đỏ)
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
+    data.normal.forEach(p => {
+        ctx.fillRect(p.x * 10, p.y * 10, 10, 10);
+    });
+
+    // Vẽ collider z-index up (xanh)
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+    data.z_index_up.forEach(p => {
+        ctx.fillRect(p.x * 10, p.y * 10, 10, 10);
+    });
+
+    // Vẽ collider z-index down (vàng)
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
+    data.z_index_down.forEach(p => {
         ctx.fillRect(p.x * 10, p.y * 10, 10, 10);
     });
 };
@@ -79,8 +132,9 @@ const paint = (e) => {
     const x = Math.floor((e.clientX - rect.left) / 10);
     const y = Math.floor((e.clientY - rect.top) / 10);
 
-    const points = hitboxes[currentPath];
-    
+    const data = hitboxes[currentPath];
+    const points = data[currentColliderType];
+
     // Vẽ theo Brush Size
     for (let i = -brushSize + 1; i < brushSize; i++) {
         for (let j = -brushSize + 1; j < brushSize; j++) {
@@ -89,7 +143,7 @@ const paint = (e) => {
             if (px < 0 || px >= currentImg.width || py < 0 || py >= currentImg.height) continue;
 
             const index = points.findIndex(p => p.x === px && p.y === py);
-            
+
             if (currentMode === "brush") {
                 if (index === -1) points.push({ x: px, y: py });
             } else {
@@ -97,7 +151,7 @@ const paint = (e) => {
             }
         }
     }
-    
+
     draw();
     updateOutput();
 };
@@ -109,7 +163,11 @@ window.onmouseup = () => { isDrawing = false; };
 const updateOutput = () => {
     const cleanData = {};
     for (let path in hitboxes) {
-        if (hitboxes[path].length > 0) cleanData[path] = hitboxes[path];
+        const data = hitboxes[path];
+        // Chỉ lưu nếu có ít nhất một collider type có data
+        if (data.normal.length > 0 || data.z_index_up.length > 0 || data.z_index_down.length > 0) {
+            cleanData[path] = data;
+        }
     }
     outputJson.value = JSON.stringify(cleanData);
 };

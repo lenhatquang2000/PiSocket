@@ -7,6 +7,7 @@ import { io } from "socket.io-client";
     const socket = io(SOCKET_URL);
     const otherPlayers = {}; // Lưu trữ container của người chơi khác
     const collidableObjects = []; // Lưu trữ các vật thể có va chạm
+    const objectSprites = []; // Lưu trữ sprites của objects để depth sorting
 
     // --- SOCKET CONNECTION LOGGING ---
     socket.on("connect", () => console.log("✅ Connected to server, id:", socket.id));
@@ -73,6 +74,9 @@ import { io } from "socket.io-client";
     for (let i = 0; i < 16; i++) {
         assetsToLoad.push(`/assets/Object/Forest/forest_obj_${i}.png`);
     }
+
+    // Thêm texture player frame để dùng cho collider
+    assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
 
     assetsToLoad.push('/assets/Object/collision_data.json');
 
@@ -167,32 +171,64 @@ import { io } from "socket.io-client";
                     sprite.scale.set(scale);
                     sprite.anchor.set(0.5, 0.5);
                     if (scale === 5.0) sprite.anchor.set(0.5, 1);
-                    
-                    sprite.zIndex = 10; // Vật thể luôn ở trên nhân vật
+
                     world.addChild(sprite);
+                    objectSprites.push(sprite);
 
                     // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
-                    const hitPoints = collisionData[path];
-                    if (hitPoints) {
+                    const hitData = collisionData[path];
+                    if (hitData) {
+                        // Backward compatibility: nếu data là array (format cũ)
+                        let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                        if (Array.isArray(hitData)) {
+                            hitPoints = hitData;
+                            zIndexUpPoints = [];
+                            zIndexDownPoints = [];
+                        } else {
+                            hitPoints = hitData.normal || [];
+                            zIndexUpPoints = hitData.z_index_up || [];
+                            zIndexDownPoints = hitData.z_index_down || [];
+                        }
+
                         collidableObjects.push({
                             x: sprite.x,
                             y: sprite.y,
                             scale: scale,
                             anchor: sprite.anchor,
                             points: hitPoints,
+                            zIndexUpPoints: zIndexUpPoints,
+                            zIndexDownPoints: zIndexDownPoints,
                             width: objTexture.width,
-                            height: objTexture.height
+                            height: objTexture.height,
+                            sprite: sprite // Lưu reference để điều chỉnh z-index
                         });
 
                         // Vẽ Debug nếu cần
                         const g = new Graphics();
                         g.beginFill(0xff0000, 0.5);
                         hitPoints.forEach(p => {
-                            // Tính toán vị trí pixel dựa trên scale và anchor
                             const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
                             const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
                             g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
                         });
+                        // Vẽ debug cho z-index up (xanh) - chỉ nếu có data mới
+                        if (zIndexUpPoints.length > 0) {
+                            g.beginFill(0x00ff00, 0.5);
+                            zIndexUpPoints.forEach(p => {
+                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                            });
+                        }
+                        // Vẽ debug cho z-index down (vàng) - chỉ nếu có data mới
+                        if (zIndexDownPoints.length > 0) {
+                            g.beginFill(0xffff00, 0.5);
+                            zIndexDownPoints.forEach(p => {
+                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                            });
+                        }
                         g.visible = false;
                         debugGraphics.addChild(g);
                         sprite.debugBounds = g;
@@ -207,6 +243,10 @@ import { io } from "socket.io-client";
     const toggleDebug = () => {
         showDebugColliders = !showDebugColliders;
         debugGraphics.visible = showDebugColliders;
+        // Hiện/ẩn collider của nhân vật
+        if (characterContainer.charColliderDebug) {
+            characterContainer.charColliderDebug.visible = showDebugColliders;
+        }
         debugBtn.innerText = showDebugColliders ? "Hide Colliders (H)" : "Show Colliders (H)";
         debugBtn.style.background = showDebugColliders ? "rgba(231, 76, 60, 0.8)" : "rgba(0,0,0,0.6)";
         console.log("Debug Colliders:", showDebugColliders);
@@ -220,12 +260,37 @@ import { io } from "socket.io-client";
     // Hàm kiểm tra va chạm Pixel-Perfect
     const checkCollision = (char, obj) => {
         // char: characterContainer, obj: item trong collidableObjects
-        const charR = 15; // Bán kính va chạm nhân vật
-        
+        const charR = 15; // Bán kính va chạm nhân vật (fallback)
+
         // Kiểm tra nhanh bằng bounding box trước
         const dist = Math.sqrt(Math.pow(char.x - obj.x, 2) + Math.pow(char.y - obj.y, 2));
         if (dist > 200) return false; // Quá xa thì bỏ qua
 
+        // Nếu player có pixel collider, dùng pixel-based collision
+        if (char.colliderData && char.colliderData.hasPixelCollider && char.colliderData.points) {
+            const charScale = char.scale.x;
+            const charPoints = char.colliderData.points;
+
+            for (let cp of charPoints) {
+                // Tính vị trí pixel của player trong world space
+                const charPx = char.x + (cp.x - char.colliderData.width * 0.5) * charScale;
+                const charPy = char.y + (cp.y - char.colliderData.height * 0.5) * charScale;
+
+                for (let p of obj.points) {
+                    const objPx = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
+                    const objPy = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
+
+                    // Kiểm tra nếu 2 pixel chồng lên nhau
+                    if (Math.abs(charPx - objPx) < (obj.scale + charScale) / 2 &&
+                        Math.abs(charPy - objPy) < (obj.scale + charScale) / 2) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Fallback: dùng circle-based collision
         for (let p of obj.points) {
             const px = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
             const py = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
@@ -233,6 +298,43 @@ import { io } from "socket.io-client";
             // Nếu tâm nhân vật đi vào vùng pixel đỏ (có sai số nhỏ)
             if (Math.abs(char.x - px) < (obj.scale) && Math.abs(char.y - py) < (obj.scale)) {
                 return true;
+            }
+        }
+        return false;
+    };
+
+    // Hàm kiểm tra va chạm với special collider (z-index up/down)
+    const checkSpecialCollider = (char, obj, points) => {
+        if (!points || points.length === 0) return false;
+
+        const charScale = char.scale.x;
+        const charPoints = char.colliderData && char.colliderData.hasPixelCollider ? char.colliderData.points : null;
+
+        // Nếu player có pixel collider
+        if (charPoints) {
+            for (let cp of charPoints) {
+                const charPx = char.x + (cp.x - char.colliderData.width * 0.5) * charScale;
+                const charPy = char.y + (cp.y - char.colliderData.height * 0.5) * charScale;
+
+                for (let p of points) {
+                    const objPx = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
+                    const objPy = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
+
+                    if (Math.abs(charPx - objPx) < (obj.scale + charScale) / 2 &&
+                        Math.abs(charPy - objPy) < (obj.scale + charScale) / 2) {
+                        return true;
+                    }
+                }
+            }
+        } else {
+            // Fallback: dùng tâm nhân vật
+            for (let p of points) {
+                const px = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
+                const py = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
+
+                if (Math.abs(char.x - px) < (obj.scale) && Math.abs(char.y - py) < (obj.scale)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -249,21 +351,66 @@ import { io } from "socket.io-client";
                 sprite.y = obj.y;
                 sprite.scale.set(obj.scale || 2.0);
                 sprite.anchor.set(0.5, 0.5);
-                sprite.zIndex = 10; // Vật thể luôn ở trên nhân vật
                 world.addChild(sprite);
+                objectSprites.push(sprite);
 
                 // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
-                const hitPoints = collisionData[path];
-                if (hitPoints) {
+                const hitData = collisionData[path];
+                if (hitData) {
+                    // Backward compatibility: nếu data là array (format cũ)
+                    let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                    if (Array.isArray(hitData)) {
+                        hitPoints = hitData;
+                        zIndexUpPoints = [];
+                        zIndexDownPoints = [];
+                    } else {
+                        hitPoints = hitData.normal || [];
+                        zIndexUpPoints = hitData.z_index_up || [];
+                        zIndexDownPoints = hitData.z_index_down || [];
+                    }
+
                     collidableObjects.push({
                         x: sprite.x,
                         y: sprite.y,
                         scale: sprite.scale.x,
                         anchor: sprite.anchor,
                         points: hitPoints,
+                        zIndexUpPoints: zIndexUpPoints,
+                        zIndexDownPoints: zIndexDownPoints,
                         width: objTexture.width,
-                        height: objTexture.height
+                        height: objTexture.height,
+                        sprite: sprite
                     });
+
+                    // Vẽ Debug nếu cần
+                    const g = new Graphics();
+                    g.beginFill(0xff0000, 0.5);
+                    hitPoints.forEach(p => {
+                        const px = (p.x - objTexture.width * sprite.anchor.x) * sprite.scale.x;
+                        const py = (p.y - objTexture.height * sprite.anchor.y) * sprite.scale.x;
+                        g.drawRect(sprite.x + px, sprite.y + py, sprite.scale.x, sprite.scale.x);
+                    });
+                    // Vẽ debug cho z-index up (xanh) - chỉ nếu có data mới
+                    if (zIndexUpPoints.length > 0) {
+                        g.beginFill(0x00ff00, 0.5);
+                        zIndexUpPoints.forEach(p => {
+                            const px = (p.x - objTexture.width * sprite.anchor.x) * sprite.scale.x;
+                            const py = (p.y - objTexture.height * sprite.anchor.y) * sprite.scale.x;
+                            g.drawRect(sprite.x + px, sprite.y + py, sprite.scale.x, sprite.scale.x);
+                        });
+                    }
+                    // Vẽ debug cho z-index down (vàng) - chỉ nếu có data mới
+                    if (zIndexDownPoints.length > 0) {
+                        g.beginFill(0xffff00, 0.5);
+                        zIndexDownPoints.forEach(p => {
+                            const px = (p.x - objTexture.width * sprite.anchor.x) * sprite.scale.x;
+                            const py = (p.y - objTexture.height * sprite.anchor.y) * sprite.scale.x;
+                            g.drawRect(sprite.x + px, sprite.y + py, sprite.scale.x, sprite.scale.x);
+                        });
+                    }
+                    g.visible = false;
+                    debugGraphics.addChild(g);
+                    sprite.debugBounds = g;
                 }
             }
         });
@@ -274,10 +421,10 @@ import { io } from "socket.io-client";
     let isGameStarted = false;
     let currentDir = 'south';
     let isMoving = false;
+    let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
 
     const characterContainer = new Container();
     characterContainer.visible = false; // Ẩn cho đến khi nhấn nút
-    characterContainer.zIndex = 5; // Nhân vật ở giữa nền và vật thể
     world.addChild(characterContainer); // Nhân vật thuộc về world
 
     const character = new AnimatedSprite(idleAnimations['south']);
@@ -295,6 +442,48 @@ import { io } from "socket.io-client";
     characterContainer.x = 500;
     characterContainer.y = 500;
     characterContainer.scale.set(0.7);
+
+    // Vẽ Debug collider cho nhân vật
+    const charColliderG = new Graphics();
+    charColliderG.visible = false;
+    characterContainer.addChild(charColliderG);
+    characterContainer.charColliderDebug = charColliderG;
+
+    // Lưu dữ liệu collider cho nhân vật
+    const playerPath = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png';
+    const playerTexture = Assets.get(playerPath);
+    const playerHitData = collisionData[playerPath];
+
+    // Handle both old array format and new object format
+    let playerHitPoints = null;
+    if (playerHitData) {
+        if (Array.isArray(playerHitData)) {
+            playerHitPoints = playerHitData;
+        } else if (typeof playerHitData === 'object' && playerHitData.normal) {
+            playerHitPoints = playerHitData.normal;
+        }
+    }
+
+    characterContainer.colliderData = {
+        hasPixelCollider: !!playerHitPoints,
+        points: playerHitPoints || null,
+        radius: 15, // Fallback radius
+        width: playerTexture ? playerTexture.width : 30,
+        height: playerTexture ? playerTexture.height : 30
+    };
+
+    // Vẽ debug collider dựa trên loại collider
+    if (playerHitPoints && playerHitPoints.length > 0) {
+        charColliderG.beginFill(0x00ff00, 0.3);
+        playerHitPoints.forEach(p => {
+            const px = (p.x - characterContainer.colliderData.width * 0.5) * 0.7;
+            const py = (p.y - characterContainer.colliderData.height * 0.5) * 0.7;
+            charColliderG.drawRect(px, py, 0.7, 0.7);
+        });
+    } else {
+        charColliderG.beginFill(0x00ff00, 0.3);
+        charColliderG.drawCircle(0, 0, 15);
+    }
 
     // --- XỬ LÝ NÚT TẠO NHÂN VẬT ---
     const gameIdInput = document.getElementById('game-id');
@@ -342,7 +531,6 @@ import { io } from "socket.io-client";
         container.x = data.x;
         container.y = data.y;
         container.scale.set(0.7);
-        container.zIndex = 5; // Người chơi khác cũng ở lớp giữa
         world.addChild(container); 
         
         otherPlayers[id] = { 
@@ -552,6 +740,58 @@ import { io } from "socket.io-client";
         // Giữ nhân vật ở giữa màn hình bằng cách di chuyển cả 'world' (có tính đến tỉ lệ phóng to)
         world.x = (app.screen.width / 2) - (characterContainer.x * world.scale.x);
         world.y = (app.screen.height / 2) - (characterContainer.y * world.scale.y);
+
+        // --- DEPTH SORTING ---
+        // Cập nhật zIndex cho objects trước (chỉ dựa trên Y)
+        objectSprites.forEach(sprite => {
+            sprite.zIndex = Math.floor(sprite.y * 10);
+        });
+
+        // Cập nhật zIndex cho other players
+        Object.values(otherPlayers).forEach(p => {
+            p.container.zIndex = Math.floor(p.container.y * 10);
+        });
+
+        // Cập nhật zIndex cho nhân vật với special collider adjustments
+        let charZIndex = Math.floor(characterContainer.y * 10);
+
+        // Kiểm tra special colliders để điều chỉnh z-index
+        collidableObjects.forEach(obj => {
+            if (!obj.sprite) return;
+
+            // Kiểm tra collider z-index up (xanh) - nhân vật ở trên object
+            if (checkSpecialCollider(characterContainer, obj, obj.zIndexUpPoints)) {
+                // Dùng z-index dựa trên Y của object + offset lớn
+                charZIndex = Math.floor(obj.y * 10) + 5000; // Offset lớn để đảm bảo ở trên
+                console.log("Z-Index UP triggered - character above object");
+            }
+            // Kiểm tra collider z-index down (vàng) - nhân vật ở dưới object
+            else if (checkSpecialCollider(characterContainer, obj, obj.zIndexDownPoints)) {
+                // Dùng z-index dựa trên Y của object - offset lớn
+                charZIndex = Math.floor(obj.y * 10) - 5000; // Offset lớn để đảm bảo ở dưới
+                console.log("Z-Index DOWN triggered - character below object");
+            }
+        });
+
+        characterContainer.zIndex = charZIndex;
+
+        // Debug: Log Y của nhân vật và object gần nhất
+        if (moved) {
+            console.log(`Character Y: ${characterContainer.y}, zIndex: ${characterContainer.zIndex}`);
+            // Tìm object gần nhất
+            let nearestObj = null;
+            let nearestDist = Infinity;
+            objectSprites.forEach(sprite => {
+                const dist = Math.abs(sprite.y - characterContainer.y);
+                if (dist < 100 && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestObj = sprite;
+                }
+            });
+            if (nearestObj) {
+                console.log(`Nearest Object Y: ${nearestObj.y}, zIndex: ${nearestObj.zIndex}, Diff: ${nearestObj.y - characterContainer.y}`);
+            }
+        }
 
         // Gửi dữ liệu vị trí lên server nếu có thay đổi (CHỈ movement)
         if (moved || (lastSentData.isMoving !== isMoving) || (lastSentData.dir !== currentDir)) {

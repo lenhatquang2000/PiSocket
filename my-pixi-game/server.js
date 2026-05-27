@@ -35,8 +35,54 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const filePath = path.join(__dirname, 'public/assets/Object/collision_data.json');
-        fs.writeFileSync(filePath, body);
-        console.log("✅ Đã tự động lưu va chạm vào:", filePath);
+
+        // Đọc file hiện tại nếu tồn tại
+        let existingData = {};
+        if (fs.existsSync(filePath)) {
+          const existingContent = fs.readFileSync(filePath, 'utf8');
+          if (existingContent.trim()) {
+            existingData = JSON.parse(existingContent);
+          }
+        }
+
+        // Merge data mới với data cũ (deep merge)
+        const newData = JSON.parse(body);
+        const mergedData = { ...existingData };
+
+        for (let path in newData) {
+          const newEntry = newData[path];
+          const existingEntry = existingData[path];
+
+          // Nếu entry cũ là array (format cũ) và entry mới là object (format mới)
+          // Chuyển array cũ sang object format
+          if (Array.isArray(existingEntry) && typeof newEntry === 'object' && newEntry !== null) {
+            mergedData[path] = {
+              normal: existingEntry,
+              z_index_up: newEntry.z_index_up || [],
+              z_index_down: newEntry.z_index_down || []
+            };
+            // Merge normal data nếu có
+            if (newEntry.normal && newEntry.normal.length > 0) {
+              mergedData[path].normal = newEntry.normal;
+            }
+          }
+          // Nếu cả 2 đều là object format, merge từng field
+          else if (typeof existingEntry === 'object' && existingEntry !== null && typeof newEntry === 'object' && newEntry !== null) {
+            mergedData[path] = {
+              normal: newEntry.normal || existingEntry.normal || [],
+              z_index_up: newEntry.z_index_up || existingEntry.z_index_up || [],
+              z_index_down: newEntry.z_index_down || existingEntry.z_index_down || []
+            };
+          }
+          // Nếu không có entry cũ hoặc entry mới là array, dùng entry mới
+          else {
+            mergedData[path] = newEntry;
+          }
+        }
+
+        // Ghi lại file đã merge
+        fs.writeFileSync(filePath, JSON.stringify(mergedData, null, 2));
+        console.log("✅ Đã deep merge và lưu va chạm vào:", filePath);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: 'Saved successfully' }));
       } catch (err) {

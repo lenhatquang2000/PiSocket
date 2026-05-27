@@ -23,6 +23,8 @@
 </head>
 <body>
     <div id="sidebar">
+        <h3>Player</h3>
+        <div id="player-list"></div>
         <h3>Desert Objects</h3>
         <div id="desert-list"></div>
         <h3>Forest Objects</h3>
@@ -36,6 +38,12 @@
                 <button id="eraserBtn">Cục tẩy</button>
                 <span>Size:</span>
                 <input type="range" id="brushSize" min="1" max="5" value="1">
+            </div>
+            <div class="tool-row">
+                <span>Loại Collider:</span>
+                <button id="colliderNormalBtn" class="active" style="background:#e74c3c">Đỏ (Va chạm)</button>
+                <button id="colliderGreenBtn" style="background:#27ae60">Xanh (Z-Index Up)</button>
+                <button id="colliderYellowBtn" style="background:#f39c12">Vàng (Z-Index Down)</button>
             </div>
             <div class="tool-row">
                 <button id="clearBtn" style="background:#e74c3c">Xóa hết vùng vẽ</button>
