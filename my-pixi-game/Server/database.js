@@ -146,7 +146,7 @@ export function initializePlayerSkills(username) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   try {
-    stmt.run([username, 1, 'Fireball', 'fireball', '/assets/Skills/Explosion/frame_', 16, 0.3, 3.0, 10]);
+    stmt.run([username, 1, 'Fireball', 'fireball', '/assets/Skills/Explosion/frame_', 16, 0.3, 5.0, 10]);
     stmt.free();
     saveDatabase();
     return true;

@@ -16,7 +16,12 @@ export function createNewAccount(username) {
 }
 
 export function getSavedPlayerState(username) {
-  return getPlayerState(username);
+  const state = getPlayerState(username);
+  // Luôn khởi tạo skills khi load player state
+  if (state) {
+    initializePlayerSkills(username);
+  }
+  return state;
 }
 
 export function saveCurrentPlayerState(playerData) {
@@ -40,4 +45,17 @@ export function getSkillCooldown(username, skillId) {
 
 // Validate username
 export function validateUsername(username) {
-  if (!username || username.trim
+  if (!username || username.trim().length === 0) {
+    return { valid: false, message: "Username không được để trống" };
+  }
+  if (username.length < 3) {
+    return { valid: false, message: "Username phải có ít nhất 3 ký tự" };
+  }
+  if (username.length > 20) {
+    return { valid: false, message: "Username không được quá 20 ký tự" };
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return { valid: false, message: "Username chỉ được chứa chữ cái, số và dấu gạch dưới" };
+  }
+  return { valid: true, message: "" };
+}

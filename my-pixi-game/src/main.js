@@ -470,6 +470,47 @@ import { io } from "socket.io-client";
     // Lắng nghe click chuột trái để tung chiêu
     app.view.addEventListener('mousedown', (e) => {
         if (e.button === 0 && isGameStarted) { // 0 là chuột trái
+            // Kiểm tra có skill không
+            if (playerSkills.length === 0) {
+                console.warn("⚠️ Bạn chưa có kỹ năng nào!");
+                return;
+            }
+
+            const skill = playerSkills[0]; // Skill đầu tiên (Fireball)
+            const cooldownData = skillCooldowns[skill.skill_id];
+            const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+            console.log(`🔍 Check: elapsed=${cooldownData.elapsed.toFixed(2)}, cooldownTime=${cooldownData.cooldownTime}, remaining=${remaining.toFixed(2)}`);
+
+            // Kiểm tra cooldown
+            if (remaining > 0) {
+                console.warn(`⏱️ Kỹ năng đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                return;
+            }
+
+            // Kiểm tra MP TRƯỚC khi phát hiệu ứng
+            if (playerStats.mp < skill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${skill.mp_cost}, hiện có ${playerStats.mp}`);
+                return;
+            }
+
+            console.log("🖱️ Left click detected, playerSkills:", playerSkills.length);
+
+            // Trừ MP
+            playerStats.mp -= skill.mp_cost;
+            console.log(`✅ Click attack! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+
+            // Ghi nhận sử dụng skill
+            fetch(`${SOCKET_URL}/use-skill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myGameId, skillId: skill.skill_id })
+            }).catch(err => console.error("❌ Lỗi record skill:", err));
+
+            // Reset cooldown
+            skillCooldowns[skill.skill_id].elapsed = 0;
+            isSkillOnCooldown = true;
+            console.log(`🔄 Cooldown reset! Elapsed: 0, Cooldown time: ${skill.cooldown_time}s`);
+
             // Chuyển đổi tọa độ click màn hình sang tọa độ trong world
             const rect = app.view.getBoundingClientRect();
             const mouseX = (e.clientX - rect.left);
@@ -479,6 +520,7 @@ import { io } from "socket.io-client";
             const worldX = (mouseX - world.x) / world.scale.x;
             const worldY = (mouseY - world.y) / world.scale.y;
 
+            console.log(`💥 Fireball at click (${worldX.toFixed(0)}, ${worldY.toFixed(0)})`);
             playExplosionSkill(worldX, worldY);
 
             // Gửi event skill cho người chơi khác
@@ -490,10 +532,12 @@ import { io } from "socket.io-client";
             // Trigger animation tấn công của nhân vật
             if (!character.playing || character.textures !== attackAnimations[currentDir]) {
                 character.textures = attackAnimations[currentDir];
+                character.animationSpeed = 0.2; // Tốc độ animation attack
                 character.loop = false;
                 character.gotoAndPlay(0);
                 character.onComplete = () => {
                     character.textures = idleAnimations[currentDir];
+                    character.animationSpeed = 0.05; // Tốc độ idle
                     character.loop = true;
                     character.play();
                 };
@@ -506,6 +550,7 @@ import { io } from "socket.io-client";
     let isGameStarted = false;
     let currentDir = 'south';
     let isMoving = false;
+    let isSkillOnCooldown = false; // Đang trong cooldown
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
     let playerStats = {
@@ -515,6 +560,10 @@ import { io } from "socket.io-client";
         maxMp: 50,
         moveSpeed: 4
     };
+
+    // --- KHAI BÁO SKILLS ---
+    let playerSkills = [];
+    let skillCooldowns = {}; // { skillId: { cooldownTime, lastUsed } }
 
     // --- HÀM CẬP NHẬT UI HP/MP ---
     const updateStatsUI = () => {
@@ -530,6 +579,219 @@ import { io } from "socket.io-client";
         if (mpBar) mpBar.style.width = `${Math.max(0, Math.min(100, mpPercent))}%`;
         if (hpText) hpText.textContent = `${Math.max(0, playerStats.hp)}/${playerStats.maxHp}`;
         if (mpText) mpText.textContent = `${Math.max(0, playerStats.mp)}/${playerStats.maxMp}`;
+    };
+
+    // --- HÀM CẬP NHẬT UI SKILLS COOLDOWN ---
+    const updateSkillsUI = () => {
+        playerSkills.forEach((skill, index) => {
+            const skillPanel = document.getElementById(`skill-${index}`);
+            if (!skillPanel) return;
+
+            const cooldownData = skillCooldowns[skill.skill_id];
+            if (!cooldownData) return;
+
+            const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+            const cooldownPercent = (remaining / cooldownData.cooldownTime) * 100;
+
+            const cooldownBar = skillPanel.querySelector('.skill-cooldown-bar');
+            const cooldownText = skillPanel.querySelector('.skill-cooldown-text');
+
+            if (cooldownBar) {
+                cooldownBar.style.width = `${cooldownPercent}%`;
+                cooldownBar.style.opacity = remaining > 0 ? '0.8' : '0';
+            }
+            if (cooldownText) {
+                cooldownText.textContent = remaining > 0 ? remaining.toFixed(1) : '';
+            }
+
+            // Disable/Enable button
+            const skillBtn = skillPanel.querySelector('.skill-btn');
+            if (skillBtn) {
+                skillBtn.disabled = remaining > 0;
+                skillBtn.style.opacity = remaining > 0 ? '0.5' : '1';
+            }
+        });
+    };
+
+    // --- HÀM LOAD SKILLS ---
+    const loadPlayerSkills = async (username) => {
+        try {
+            const response = await fetch(`${SOCKET_URL}/get-skills`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            playerSkills = data.skills || [];
+            console.log("✅ Loaded skills:", playerSkills);
+
+            // Khởi tạo cooldown cho mỗi skill
+            playerSkills.forEach(skill => {
+                skillCooldowns[skill.skill_id] = {
+                    cooldownTime: skill.cooldown_time,
+                    elapsed: skill.cooldown_time // Bắt đầu sẵn sàng
+                };
+            });
+
+            // Tạo UI cho skills
+            createSkillsUI();
+        } catch (err) {
+            console.error("❌ Lỗi load skills:", err);
+        }
+    };
+
+    // --- HÀM TẠO UI SKILLS ---
+    const createSkillsUI = () => {
+        console.log("🎮 Creating skills UI for", playerSkills.length, "skills");
+        const skillsContainer = document.getElementById('skills-container');
+        if (!skillsContainer) {
+            // Tạo container nếu chưa có
+            const container = document.createElement('div');
+            container.id = 'skills-container';
+            container.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                display: flex;
+                gap: 10px;
+                z-index: 150;
+            `;
+            document.body.appendChild(container);
+            console.log("✅ Created skills container");
+        }
+
+        const container = document.getElementById('skills-container');
+        container.innerHTML = ''; // Clear old skills
+
+        playerSkills.forEach((skill, index) => {
+            console.log(`Creating skill button for: ${skill.skill_name}`);
+            const skillPanel = document.createElement('div');
+            skillPanel.id = `skill-${index}`;
+            skillPanel.style.cssText = `
+                position: relative;
+                width: 60px;
+                height: 60px;
+                background: rgba(0, 0, 0, 0.7);
+                border: 2px solid #1099bb;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            `;
+
+            const skillBtn = document.createElement('button');
+            skillBtn.className = 'skill-btn';
+            skillBtn.textContent = `${index + 1}`;
+            skillBtn.style.cssText = `
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                border: none;
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                cursor: pointer;
+                transition: opacity 0.3s;
+            `;
+
+            skillBtn.onclick = () => useSkill(skill, index);
+
+            const cooldownBar = document.createElement('div');
+            cooldownBar.className = 'skill-cooldown-bar';
+            cooldownBar.style.cssText = `
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                height: 4px;
+                background: linear-gradient(90deg, #ff6b6b, #ff8787);
+                width: 0%;
+                transition: width 0.1s;
+            `;
+
+            const cooldownText = document.createElement('div');
+            cooldownText.className = 'skill-cooldown-text';
+            cooldownText.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                text-shadow: 0 0 4px rgba(0,0,0,0.8);
+            `;
+
+            skillPanel.appendChild(skillBtn);
+            skillPanel.appendChild(cooldownBar);
+            skillPanel.appendChild(cooldownText);
+
+            container.appendChild(skillPanel);
+        });
+    };
+
+    // --- HÀM SỬ DỤNG SKILL ---
+    const useSkill = async (skill, index) => {
+        console.log(`🎯 Attempting to use skill: ${skill.skill_name}`);
+        const cooldownData = skillCooldowns[skill.skill_id];
+        const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+
+        if (remaining > 0) {
+            console.log(`⏱️ Skill ${skill.skill_name} còn ${remaining.toFixed(1)}s hồi chiêu`);
+            return;
+        }
+
+        if (playerStats.mp < skill.mp_cost) {
+            console.log(`❌ Không đủ MP! Cần ${skill.mp_cost}, hiện có ${playerStats.mp}`);
+            return;
+        }
+
+        // Trừ MP
+        playerStats.mp -= skill.mp_cost;
+        console.log(`✅ Used skill ${skill.skill_name}, MP: ${playerStats.mp}/${playerStats.maxMp}`);
+
+        // Ghi nhận sử dụng skill
+        try {
+            await fetch(`${SOCKET_URL}/use-skill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myGameId, skillId: skill.skill_id })
+            });
+        } catch (err) {
+            console.error("❌ Lỗi record skill:", err);
+        }
+
+        // Reset cooldown
+        skillCooldowns[skill.skill_id].elapsed = 0;
+        isSkillOnCooldown = true;
+
+        // Phát hiệu ứng skill
+        playSkillEffect(skill);
+
+        console.log(`🎨 Playing skill effect for: ${skill.skill_name}`);
+    };
+
+    // --- HÀM PHÁT HIỆU ỨNG SKILL ---
+    const playSkillEffect = (skill) => {
+        console.log(`🎬 Playing skill effect for: ${skill.skill_type}`);
+        if (skill.skill_type === 'fireball') {
+            // Lấy tọa độ phía trước nhân vật
+            const dirIndex = directions.indexOf(currentDir);
+            const angle = (dirIndex / 8) * Math.PI * 2;
+            const targetX = characterContainer.x + Math.cos(angle) * 100;
+            const targetY = characterContainer.y + Math.sin(angle) * 100;
+
+            console.log(`💥 Fireball at (${targetX.toFixed(0)}, ${targetY.toFixed(0)})`);
+            playExplosionSkill(targetX, targetY);
+
+            // Gửi skill cho người chơi khác
+            socket.emit("playerSkill", {
+                targetX: targetX,
+                targetY: targetY
+            });
+        } else {
+            console.warn(`⚠️ Unknown skill type: ${skill.skill_type}`);
+        }
     };
 
     const characterContainer = new Container();
@@ -654,6 +916,7 @@ import { io } from "socket.io-client";
             }
             nameTag.text = myGameId;
             updateStatsUI(); // Cập nhật UI HP/MP
+            await loadPlayerSkills(myGameId); // Load skills
             
             uiOverlay.style.display = 'none'; // Ẩn UI
             characterContainer.visible = true; // Hiện nhân vật
@@ -828,32 +1091,8 @@ import { io } from "socket.io-client";
 
     // XỎ LÝ TẤN CÔNG (Click chuột trái)
     let isAttacking = false;
-    window.addEventListener('mousedown', (e) => {
-        if (!isGameStarted || isAttacking) return;
-        if (e.button === 0) { // Chuột trái
-            isAttacking = true;
-            character.textures = attackAnimations[currentDir];
-            character.animationSpeed = 0.15;
-            character.loop = false;
-            character.gotoAndPlay(0); // Bắt đầu từ frame 0
-            
-            // Khi animation tấn công kết thúc
-            character.onComplete = () => {
-                isAttacking = false;
-                character.loop = true;
-                character.onComplete = null;
-                // Quay lại animation cũ tùy theo trạng thái di chuyển
-                character.textures = isMoving ? walkAnimations[currentDir] : idleAnimations[currentDir];
-                character.play();
-            };
-
-            // Gửi event TẤN CÔNG riêng biệt (không ghép vào movement)
-            console.log("Emitting playerAttack, dir:", currentDir);
-            socket.emit("playerAttack", {
-                dir: currentDir
-            });
-        }
-    });
+    // Event listener cũ đã được thay thế bằng app.view.addEventListener ở trên
+    // Không cần event listener window.addEventListener nữa
 
     let lastSentData = { x: 0, y: 0, dir: '', isMoving: false };
 
@@ -1009,5 +1248,24 @@ import { io } from "socket.io-client";
 
         // Cập nhật UI HP/MP
         updateStatsUI();
+
+        // Cập nhật cooldown skills
+        playerSkills.forEach(skill => {
+            const cooldownData = skillCooldowns[skill.skill_id];
+            if (cooldownData) {
+                if (cooldownData.elapsed < cooldownData.cooldownTime) {
+                    cooldownData.elapsed += ticker.deltaTime;
+                    // Debug log
+                    if (cooldownData.elapsed % 1 < ticker.deltaTime) { // Log mỗi giây
+                        console.log(`⏱️ Cooldown: ${cooldownData.elapsed.toFixed(1)}/${cooldownData.cooldownTime}s`);
+                    }
+                } else {
+                    // Cooldown hết - reset elapsed
+                    cooldownData.elapsed = cooldownData.cooldownTime;
+                    isSkillOnCooldown = false;
+                }
+            }
+        });
+        updateSkillsUI();
     });
 })();

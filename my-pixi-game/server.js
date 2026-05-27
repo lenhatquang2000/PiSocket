@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { initDatabase } from './Server/database.js';
-import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername } from './Server/playerManager.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown } from './Server/playerManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +77,57 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ success }));
       } catch (err) {
         console.error("❌ Lỗi create account:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get player skills
+  else if (req.method === 'POST' && req.url === '/get-skills') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username } = JSON.parse(body);
+        const skills = getPlayerSkillsList(username);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ skills }));
+      } catch (err) {
+        console.error("❌ Lỗi get skills:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Record skill usage
+  else if (req.method === 'POST' && req.url === '/use-skill') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username, skillId } = JSON.parse(body);
+        recordSkillUsage(username, skillId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        console.error("❌ Lỗi record skill:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get skill cooldown
+  else if (req.method === 'POST' && req.url === '/skill-cooldown') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username, skillId } = JSON.parse(body);
+        const cooldownData = getSkillCooldown(username, skillId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ cooldownData }));
+      } catch (err) {
+        console.error("❌ Lỗi get cooldown:", err);
         res.writeHead(500);
         res.end(JSON.stringify({ error: err.message }));
       }
