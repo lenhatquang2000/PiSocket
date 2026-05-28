@@ -34,7 +34,8 @@ export class FarmingManager {
         const textureSize = farmedTexture.width;
         const scale = TILE_SIZE / textureSize;
         farmedSprite.scale.set(scale);
-        farmedSprite.zIndex = 1;
+        farmedSprite.isFixedGround = true;
+        farmedSprite.zIndex = -1000000;
 
         this.world.addChild(farmedSprite);
         this.farmedTiles.push(farmedSprite);
@@ -88,7 +89,7 @@ export class FarmingManager {
         cropSprite.y = gridY;
         cropSprite.anchor.set(0.5, 1);
         cropSprite.scale.set(0.5);
-        cropSprite.zIndex = 2;
+        cropSprite.zIndex = Math.floor(gridY * 10); // Depth sorting theo Y
         cropSprite.animationSpeed = 0.05;
         cropSprite.loop = true;
         cropSprite.play();

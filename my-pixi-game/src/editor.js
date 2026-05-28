@@ -3,10 +3,11 @@ const ctx = canvas.getContext('2d');
 const outputJson = document.getElementById('outputJson');
 const desertList = document.getElementById('desert-list');
 const forestList = document.getElementById('forest-list');
+const seedList = document.getElementById('seed-list');
 const mapList = document.getElementById('map-list');
 
 // Import map editors
-import { setupSubmapEditor } from './submapEditor.js';
+import { setupSubmapEditor, setSubmapEditorMode } from './submapEditor.js';
 import { setupWorldmapEditor } from './worldmapEditor.js';
 
 let currentImg = null;
@@ -14,8 +15,8 @@ let currentPath = "";
 let isDrawing = false;
 let currentMode = "brush"; // "brush" or "eraser"
 let brushSize = 1;
-let currentColliderType = "normal"; // "normal", "z_index_up", "z_index_down"
-let hitboxes = {}; // { path: { normal: [{x,y}], z_index_up: [{x,y}], z_index_down: [{x,y}] } }
+let currentColliderType = "normal"; // "normal", "z_index_up", "z_index_down", "trigger_zone"
+let hitboxes = {}; // { path: { normal: [{x,y}], z_index_up: [{x,y}], z_index_down: [{x,y}], trigger_zone: [{x,y}] } }
 let objectScale = 1; // Scale factor for the object
 
 // Các nút điều khiển
@@ -41,29 +42,40 @@ objectScaleInput.oninput = (e) => {
 const colliderNormalBtn = document.getElementById('colliderNormalBtn');
 const colliderGreenBtn = document.getElementById('colliderGreenBtn');
 const colliderYellowBtn = document.getElementById('colliderYellowBtn');
+const colliderPurpleBtn = document.getElementById('colliderPurpleBtn');
 
 colliderNormalBtn.onclick = () => {
     currentColliderType = "normal";
     colliderNormalBtn.classList.add('active');
     colliderGreenBtn.classList.remove('active');
     colliderYellowBtn.classList.remove('active');
+    colliderPurpleBtn.classList.remove('active');
 };
 colliderGreenBtn.onclick = () => {
     currentColliderType = "z_index_up";
     colliderNormalBtn.classList.remove('active');
     colliderGreenBtn.classList.add('active');
     colliderYellowBtn.classList.remove('active');
+    colliderPurpleBtn.classList.remove('active');
 };
 colliderYellowBtn.onclick = () => {
     currentColliderType = "z_index_down";
     colliderNormalBtn.classList.remove('active');
     colliderGreenBtn.classList.remove('active');
     colliderYellowBtn.classList.add('active');
+    colliderPurpleBtn.classList.remove('active');
+};
+colliderPurpleBtn.onclick = () => {
+    currentColliderType = "trigger_zone";
+    colliderNormalBtn.classList.remove('active');
+    colliderGreenBtn.classList.remove('active');
+    colliderYellowBtn.classList.remove('active');
+    colliderPurpleBtn.classList.add('active');
 };
 
 clearBtn.onclick = () => {
     if(currentPath) {
-        hitboxes[currentPath] = { normal: [], z_index_up: [], z_index_down: [] };
+        hitboxes[currentPath] = { normal: [], z_index_up: [], z_index_down: [], trigger_zone: [] };
         draw();
         updateOutput();
     }
@@ -101,6 +113,30 @@ const loadLists = () => {
         createItem(path, forestList);
     }
     
+    // Load seed/crop assets
+    const seedFiles = [
+        '1._Tiny_green_rice_seedling_sprout_emerg.png',
+        '2._Tiny_green_rice_seedling_tilted_sligh.png',
+        '3._Tiny_green_rice_seedling_standing_upr.png',
+        '4._Tiny_green_rice_seedling_tilted_sligh.png',
+        '5._Young_green_rice_plant_medium_height.png',
+        '6._Young_green_rice_plant_leaning_slight.png',
+        '7._Young_green_rice_plant_standing_uprig.png',
+        '8._Young_green_rice_plant_leaning_slight.png',
+        '9._Tall_green_rice_plant_with_flowering.png',
+        '10._Tall_green_rice_plant_with_flowers_s.png',
+        '11._Tall_green_rice_plant_with_flowers_s.png',
+        '12._Tall_green_rice_plant_with_flowers_s.png',
+        '13._Mature_golden_yellow_rice_plant_read.png',
+        '14._Mature_golden_yellow_rice_plant_with.png',
+        '15._Mature_golden_yellow_rice_plant_with.png',
+        '16._Mature_golden_yellow_rice_plant_with.png'
+    ];
+    seedFiles.forEach(file => {
+        const path = `/assets/seed/${file}`;
+        createItem(path, seedList);
+    });
+    
     // Load map objects
     loadMapObjects();
 };
@@ -132,6 +168,34 @@ const setupTabs = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const initialTab = urlParams.get('tab') || 'objects';
     
+    const applyTabView = (tabId) => {
+        const editorCanvas = document.getElementById('editorCanvas');
+        const submapCanvas = document.getElementById('submap-canvas');
+        const worldmapCanvas = document.getElementById('worldmap-canvas');
+        const controls = document.getElementById('controls');
+        const submapControls = document.getElementById('submap-controls');
+        const worldmapControls = document.getElementById('worldmap-controls');
+        
+        editorCanvas.classList.remove('active');
+        submapCanvas.classList.remove('active');
+        worldmapCanvas.classList.remove('active');
+        controls.style.display = 'none';
+        submapControls.classList.remove('active');
+        worldmapControls.classList.remove('active');
+        
+        if (tabId === 'submap' || tabId === 'submapobjects') {
+            submapCanvas.classList.add('active');
+            submapControls.classList.add('active');
+            setSubmapEditorMode(tabId === 'submapobjects' ? 'objects' : 'ground');
+        } else if (tabId === 'worldmap') {
+            worldmapCanvas.classList.add('active');
+            worldmapControls.classList.add('active');
+        } else {
+            editorCanvas.classList.add('active');
+            controls.style.display = 'block';
+        }
+    };
+    
     // Function to switch to a specific tab
     const switchTab = (tabId) => {
         // Remove active class from all buttons and contents
@@ -149,6 +213,8 @@ const setupTabs = () => {
         const newUrl = new URL(window.location);
         newUrl.searchParams.set('tab', tabId);
         window.history.replaceState({}, '', newUrl);
+        
+        applyTabView(tabId);
     };
     
     // Set initial tab based on URL parameter
@@ -159,34 +225,6 @@ const setupTabs = () => {
         btn.addEventListener('click', () => {
             const tabId = btn.getAttribute('data-tab');
             switchTab(tabId);
-            
-            // Toggle canvas visibility based on tab
-            const editorCanvas = document.getElementById('editorCanvas');
-            const submapCanvas = document.getElementById('submap-canvas');
-            const worldmapCanvas = document.getElementById('worldmap-canvas');
-            const controls = document.getElementById('controls');
-            const submapControls = document.getElementById('submap-controls');
-            const worldmapControls = document.getElementById('worldmap-controls');
-            
-            // Hide all canvases and controls
-            editorCanvas.classList.remove('active');
-            submapCanvas.classList.remove('active');
-            worldmapCanvas.classList.remove('active');
-            controls.style.display = 'none';
-            submapControls.classList.remove('active');
-            worldmapControls.classList.remove('active');
-            
-            // Show appropriate canvas and controls
-            if (tabId === 'submap') {
-                submapCanvas.classList.add('active');
-                submapControls.classList.add('active');
-            } else if (tabId === 'worldmap') {
-                worldmapCanvas.classList.add('active');
-                worldmapControls.classList.add('active');
-            } else {
-                editorCanvas.classList.add('active');
-                controls.style.display = 'block';
-            }
         });
     });
 };
@@ -233,7 +271,7 @@ const draw = () => {
     ctx.globalAlpha = 1.0;
 
     // Vẽ các pixel đã tô theo loại collider
-    const data = hitboxes[currentPath] || { normal: [], z_index_up: [], z_index_down: [] };
+    const data = hitboxes[currentPath] || { normal: [], z_index_up: [], z_index_down: [], trigger_zone: [] };
 
     // Vẽ collider thường (đỏ)
     ctx.fillStyle = 'rgba(255, 0, 0, 0.6)';
@@ -252,6 +290,14 @@ const draw = () => {
     data.z_index_down.forEach(p => {
         ctx.fillRect(p.x * 10 * objectScale + offsetX, p.y * 10 * objectScale + offsetY, 10 * objectScale, 10 * objectScale);
     });
+
+    // Vẽ trigger zone (tím)
+    ctx.fillStyle = 'rgba(155, 89, 182, 0.6)';
+    if (data.trigger_zone) {
+        data.trigger_zone.forEach(p => {
+            ctx.fillRect(p.x * 10 * objectScale + offsetX, p.y * 10 * objectScale + offsetY, 10 * objectScale, 10 * objectScale);
+        });
+    }
 };
 
 const paint = (e) => {
@@ -261,7 +307,7 @@ const paint = (e) => {
     const y = Math.floor((e.clientY - rect.top) / 10);
 
     const data = hitboxes[currentPath];
-    const points = data[currentColliderType];
+    const points = data[currentColliderType] || []; // Backward compatibility
 
     // Vẽ theo Brush Size
     for (let i = -brushSize + 1; i < brushSize; i++) {
@@ -293,7 +339,7 @@ const updateOutput = () => {
     for (let path in hitboxes) {
         const data = hitboxes[path];
         // Chỉ lưu nếu có ít nhất một collider type có data
-        if (data.normal.length > 0 || data.z_index_up.length > 0 || data.z_index_down.length > 0) {
+        if (data.normal.length > 0 || data.z_index_up.length > 0 || data.z_index_down.length > 0 || (data.trigger_zone && data.trigger_zone.length > 0)) {
             cleanData[path] = data;
         }
     }

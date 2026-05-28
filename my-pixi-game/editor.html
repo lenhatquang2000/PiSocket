@@ -49,6 +49,7 @@
             <button class="tab-btn active" data-tab="objects">Collision</button>
             <button class="tab-btn" data-tab="map">Map Objects</button>
             <button class="tab-btn" data-tab="submap">Sub-Map Editor</button>
+            <button class="tab-btn" data-tab="submapobjects">Sub-Map Objects</button>
             <button class="tab-btn" data-tab="worldmap">World Map</button>
         </div>
         
@@ -59,6 +60,8 @@
             <div id="desert-list"></div>
             <h3>Forest Objects</h3>
             <div id="forest-list"></div>
+            <h3>Seed / Crop</h3>
+            <div id="seed-list"></div>
         </div>
         
         <div id="map-tab" class="tab-content">
@@ -94,14 +97,26 @@
             <button id="createSubmapBtn" style="width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 10px;">Tạo Map Con Mới</button>
             <button id="resetSubmapBtn" style="width: 100%; padding: 10px; background: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Reset (Tạo Map Khác)</button>
             
-            <h3 style="margin-top: 20px;">🎨 Tiles & Objects</h3>
-            <div id="submap-tiles-list"></div>
             <h3>Top-Down Assets</h3>
             <div id="submap-topdown-list"></div>
+        </div>
+        
+        <div id="submapobjects-tab" class="tab-content">
+            <h3>🧱 Đặt Object Lên Sub-Map</h3>
+            <p style="font-size: 12px; color: #bdc3c7;">Dùng tab này sau khi đã vẽ nền map ở tab Sub-Map Editor.</p>
+            <div style="margin-bottom: 15px; padding: 10px; background: rgba(26, 188, 156, 0.12); border-radius: 4px;">
+                <label style="font-weight: bold;">Load Sub-Map đã vẽ:</label>
+                <select id="submapObjectLoadSelect" style="width: 100%; padding: 6px; margin-top: 6px;">
+                    <option value="">Đang tải danh sách...</option>
+                </select>
+                <button id="loadSubmapForObjectsBtn" style="width: 100%; padding: 8px; margin-top: 8px; background: #3498db;">📂 Load Sub-Map để đặt Object</button>
+            </div>
+            <h3>Map2 Tiles</h3>
+            <div id="submap-object-tiles-list"></div>
             <h3>Desert Objects</h3>
-            <div id="submap-desert-list"></div>
+            <div id="submap-object-desert-list"></div>
             <h3>Forest Objects</h3>
-            <div id="submap-forest-list"></div>
+            <div id="submap-object-forest-list"></div>
         </div>
         
         <div id="worldmap-tab" class="tab-content">
@@ -133,6 +148,7 @@
                     <button id="colliderNormalBtn" class="active" style="background:#e74c3c">Đỏ (Va chạm)</button>
                     <button id="colliderGreenBtn" style="background:#27ae60">Xanh (Z-Index Up)</button>
                     <button id="colliderYellowBtn" style="background:#f39c12">Vàng (Z-Index Down)</button>
+                    <button id="colliderPurpleBtn" style="background:#9b59b6">Tím (Trigger Zone)</button>
                 </div>
                 <div class="tool-row">
                     <span>Scale:</span>

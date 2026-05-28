@@ -1,5 +1,6 @@
 import { Application, Assets, AnimatedSprite, Container, Text, TextStyle, TilingSprite, Graphics } from 'pixi.js';
 import { io } from "socket.io-client";
+import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
 (async () => {
     // 0. Kết nối WebSocket
@@ -298,22 +299,25 @@ import { io } from "socket.io-client";
                         sprite.rotation = obj.rotation * Math.PI / 180;
                     }
                     
-                    sprite.zIndex = 1; // Objects above ground
+                    sprite.isTopdownGround = obj.path.startsWith('/assets/Map/topdown/') || obj.path.startsWith('/assets/Farming1/2D_game_asset_cultivated_farm');
+                    sprite.zIndex = sprite.isTopdownGround ? -1000000 : (obj.zIndex ?? 1); // Objects above ground
                     world.addChild(sprite);
                     objectSprites.push(sprite);
                     
                     // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
                     const hitData = collisionData[obj.path];
                     if (hitData) {
-                        let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                        let hitPoints, zIndexUpPoints, zIndexDownPoints, triggerZonePoints;
                         if (Array.isArray(hitData)) {
                             hitPoints = hitData;
                             zIndexUpPoints = [];
                             zIndexDownPoints = [];
+                            triggerZonePoints = [];
                         } else {
                             hitPoints = hitData.normal || [];
                             zIndexUpPoints = hitData.z_index_up || [];
                             zIndexDownPoints = hitData.z_index_down || [];
+                            triggerZonePoints = hitData.trigger_zone || [];
                         }
 
                         collidableObjects.push({
@@ -324,9 +328,11 @@ import { io } from "socket.io-client";
                             points: hitPoints,
                             zIndexUpPoints: zIndexUpPoints,
                             zIndexDownPoints: zIndexDownPoints,
+                            triggerZonePoints: triggerZonePoints,
                             width: objTexture.width,
                             height: objTexture.height,
-                            sprite: sprite
+                            sprite: sprite,
+                            path: obj.path // Thêm path để debug
                         });
 
                         // Vẽ Debug colliders
@@ -410,15 +416,17 @@ import { io } from "socket.io-client";
 
                     const hitData = collisionData[path];
                     if (hitData) {
-                        let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                        let hitPoints, zIndexUpPoints, zIndexDownPoints, triggerZonePoints;
                         if (Array.isArray(hitData)) {
                             hitPoints = hitData;
                             zIndexUpPoints = [];
                             zIndexDownPoints = [];
+                            triggerZonePoints = [];
                         } else {
                             hitPoints = hitData.normal || [];
                             zIndexUpPoints = hitData.z_index_up || [];
                             zIndexDownPoints = hitData.z_index_down || [];
+                            triggerZonePoints = hitData.trigger_zone || [];
                         }
 
                         collidableObjects.push({
@@ -429,6 +437,7 @@ import { io } from "socket.io-client";
                             points: hitPoints,
                             zIndexUpPoints: zIndexUpPoints,
                             zIndexDownPoints: zIndexDownPoints,
+                            triggerZonePoints: triggerZonePoints,
                             width: objTexture.width,
                             height: objTexture.height,
                             sprite: sprite
@@ -586,15 +595,17 @@ import { io } from "socket.io-client";
                 const hitData = collisionData[path];
                 if (hitData) {
                     // Backward compatibility: nếu data là array (format cũ)
-                    let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                    let hitPoints, zIndexUpPoints, zIndexDownPoints, triggerZonePoints;
                     if (Array.isArray(hitData)) {
                         hitPoints = hitData;
                         zIndexUpPoints = [];
                         zIndexDownPoints = [];
+                        triggerZonePoints = [];
                     } else {
                         hitPoints = hitData.normal || [];
                         zIndexUpPoints = hitData.z_index_up || [];
                         zIndexDownPoints = hitData.z_index_down || [];
+                        triggerZonePoints = hitData.trigger_zone || [];
                     }
 
                     collidableObjects.push({
@@ -605,9 +616,11 @@ import { io } from "socket.io-client";
                         points: hitPoints,
                         zIndexUpPoints: zIndexUpPoints,
                         zIndexDownPoints: zIndexDownPoints,
+                        triggerZonePoints: triggerZonePoints,
                         width: objTexture.width,
                         height: objTexture.height,
-                        sprite: sprite
+                        sprite: sprite,
+                        path: path // Thêm path để debug
                     });
 
                     // Vẽ Debug nếu cần
@@ -711,7 +724,8 @@ import { io } from "socket.io-client";
         const scale = targetSize / textureSize;
         farmedSprite.scale.set(scale);
         
-        farmedSprite.zIndex = 1; // Nằm trên nền đất nhưng dưới objects khác
+        farmedSprite.isFixedGround = true;
+        farmedSprite.zIndex = -1000000; // Nằm cố định dưới player và objects khác
 
         world.addChild(farmedSprite);
         farmedTiles.push(farmedSprite);
@@ -779,13 +793,36 @@ import { io } from "socket.io-client";
         cropSprite.y = gridY;
         cropSprite.anchor.set(0.5, 1); // Anchor ở dưới để cây mọc lên từ đất
         cropSprite.scale.set(0.5); // Scale nhỏ lại cho phù hợp với tile 32x32
-        cropSprite.zIndex = 2; // Nằm trên đất đã đào
+        cropSprite.zIndex = Math.floor(gridY * 10); // Depth sorting theo Y
         cropSprite.animationSpeed = 0.05; // Chậm để tạo hiệu ứng đung đưa
         cropSprite.loop = true;
         cropSprite.play();
 
         world.addChild(cropSprite);
         
+        // Mapping stage -> path file cho collider data (dùng RICE_FRAME_FILES)
+        const stageToPath = {
+            1: `/assets/seed/${RICE_FRAME_FILES[0]}`, // Frame 1-4: Stage 1
+            2: `/assets/seed/${RICE_FRAME_FILES[4]}`, // Frame 5-8: Stage 2
+            3: `/assets/seed/${RICE_FRAME_FILES[8]}`, // Frame 9-12: Stage 3
+            4: `/assets/seed/${RICE_FRAME_FILES[12]}` // Frame 13-16: Stage 4
+        };
+        
+        // Load collider data cho crop (dùng path của stage hiện tại)
+        const cropPath = stageToPath[1]; // Stage 1
+        const hitData = collisionData[cropPath];
+        let hitPoints = [], zIndexUpPoints = [], zIndexDownPoints = [], triggerZonePoints = [];
+        if (hitData) {
+            if (Array.isArray(hitData)) {
+                hitPoints = hitData;
+            } else {
+                hitPoints = hitData.normal || [];
+                zIndexUpPoints = hitData.z_index_up || [];
+                zIndexDownPoints = hitData.z_index_down || [];
+                triggerZonePoints = hitData.trigger_zone || [];
+            }
+        }
+
         const cropObject = {
             sprite: cropSprite,
             x: gridX,
@@ -793,10 +830,24 @@ import { io } from "socket.io-client";
             cropData: cropData,
             plantedAt: plantedAt || Date.now(),
             currentStage: 1, // Bắt đầu từ stage 1
-            maxStage: 4 // Tổng cộng 4 giai đoạn
+            maxStage: 4, // Tổng cộng 4 giai đoạn
+            // Collider data
+            points: hitPoints,
+            zIndexUpPoints: zIndexUpPoints,
+            zIndexDownPoints: zIndexDownPoints,
+            triggerZonePoints: triggerZonePoints,
+            width: cropSprite.texture.width,
+            height: cropSprite.texture.height,
+            scale: 0.5,
+            anchor: cropSprite.anchor,
+            path: cropPath,
+            stageToPath: stageToPath // Lưu mapping để update khi crop lớn lên
         };
         
         plantedCrops.push(cropObject);
+
+        // Thêm crop vào collidableObjects để check special collider
+        collidableObjects.push(cropObject);
 
         // Lưu vào server nếu cần
         if (saveToServer) {
@@ -1262,7 +1313,7 @@ import { io } from "socket.io-client";
     world.addChild(characterContainer); // Nhân vật thuộc về world
 
     const character = new AnimatedSprite(idleAnimations['south']);
-    character.anchor.set(0.5, 0.5);
+    character.anchor.set(0.5, 0.55); // Anchor ở dưới chân
     character.animationSpeed = 0.05;
     character.play();
     characterContainer.addChild(character);
@@ -1433,7 +1484,7 @@ import { io } from "socket.io-client";
         console.log("Creating other player:", data.name || id);
         const container = new Container();
         const sprite = new AnimatedSprite(idleAnimations[data.dir || 'south']);
-        sprite.anchor.set(0.5, 0.5);
+        sprite.anchor.set(0.5, 1); // Anchor ở dưới chân
         sprite.animationSpeed = 0.05;
         sprite.play();
         container.addChild(sprite);
@@ -1891,7 +1942,57 @@ import { io } from "socket.io-client";
         // --- DEPTH SORTING ---
         // Cập nhật zIndex cho objects trước (chỉ dựa trên Y)
         objectSprites.forEach(sprite => {
-            sprite.zIndex = Math.floor(sprite.y * 10);
+            sprite.zIndex = sprite.isTopdownGround ? -1000000 : Math.floor(sprite.y * 10);
+        });
+
+        // Cập nhật zIndex cho crop sprites (cây trồng) theo Y
+        plantedCrops.forEach(crop => {
+            if (crop.sprite) {
+                crop.sprite.zIndex = Math.floor(crop.y * 10);
+                
+                // Kiểm tra và update stage dựa trên thời gian
+                const elapsed = (Date.now() - crop.plantedAt) / 1000; // seconds
+                let newStage = crop.currentStage;
+                
+                if (elapsed < CROP_GROWTH_STAGES.STAGE_1_DURATION) {
+                    newStage = 1;
+                } else if (elapsed < CROP_GROWTH_STAGES.STAGE_1_DURATION + CROP_GROWTH_STAGES.STAGE_2_DURATION) {
+                    newStage = 2;
+                } else if (elapsed < CROP_GROWTH_STAGES.STAGE_1_DURATION + CROP_GROWTH_STAGES.STAGE_2_DURATION + CROP_GROWTH_STAGES.STAGE_3_DURATION) {
+                    newStage = 3;
+                } else {
+                    newStage = 4;
+                }
+                
+                // Update stage và collider data nếu stage thay đổi
+                if (newStage !== crop.currentStage) {
+                    crop.currentStage = newStage;
+                    
+                    // Update sprite textures
+                    const stageFrames = `stage${newStage}`;
+                    crop.sprite.textures = riceGrowthFrames[stageFrames];
+                    
+                    // Update collider data
+                    const newCropPath = crop.stageToPath[newStage];
+                    const newHitData = collisionData[newCropPath];
+                    if (newHitData) {
+                        if (Array.isArray(newHitData)) {
+                            crop.points = newHitData;
+                            crop.zIndexUpPoints = [];
+                            crop.zIndexDownPoints = [];
+                            crop.triggerZonePoints = [];
+                        } else {
+                            crop.points = newHitData.normal || [];
+                            crop.zIndexUpPoints = newHitData.z_index_up || [];
+                            crop.zIndexDownPoints = newHitData.z_index_down || [];
+                            crop.triggerZonePoints = newHitData.trigger_zone || [];
+                        }
+                        crop.path = newCropPath;
+                    }
+                    
+                    console.log(`🌱 Crop grew to stage ${newStage} at (${crop.x}, ${crop.y})`);
+                }
+            }
         });
 
         // Cập nhật zIndex cho other players
@@ -1921,6 +2022,24 @@ import { io } from "socket.io-client";
         });
 
         characterContainer.zIndex = charZIndex;
+
+        // Kiểm tra trigger zone (tím) giữa các objects
+        // Nếu object A có trigger zone chạm vào z_index_up của object B → A có z-index cao hơn B
+        collidableObjects.forEach(objA => {
+            if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
+
+            collidableObjects.forEach(objB => {
+                if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
+                if (objA === objB) return;
+
+                // Check collision giữa trigger zone của A và z_index_up của B
+                if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
+                    // A có z-index cao hơn B
+                    objA.sprite.zIndex = Math.floor(objB.y * 10) + 5000;
+                    console.log("Trigger zone: Object A above Object B");
+                }
+            });
+        });
 
         // Debug: Log Y của nhân vật và object gần nhất
         if (moved) {

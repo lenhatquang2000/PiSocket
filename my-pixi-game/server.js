@@ -268,7 +268,8 @@ const server = http.createServer((req, res) => {
             mergedData[path] = {
               normal: existingEntry,
               z_index_up: newEntry.z_index_up || [],
-              z_index_down: newEntry.z_index_down || []
+              z_index_down: newEntry.z_index_down || [],
+              trigger_zone: newEntry.trigger_zone || []
             };
             // Merge normal data nếu có
             if (newEntry.normal && newEntry.normal.length > 0) {
@@ -280,7 +281,8 @@ const server = http.createServer((req, res) => {
             mergedData[path] = {
               normal: newEntry.normal || existingEntry.normal || [],
               z_index_up: newEntry.z_index_up || existingEntry.z_index_up || [],
-              z_index_down: newEntry.z_index_down || existingEntry.z_index_down || []
+              z_index_down: newEntry.z_index_down || existingEntry.z_index_down || [],
+              trigger_zone: newEntry.trigger_zone || existingEntry.trigger_zone || []
             };
           }
           // Nếu không có entry cũ hoặc entry mới là array, dùng entry mới

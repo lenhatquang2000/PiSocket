@@ -25,19 +25,41 @@ export let submapState = {
     dragOffsetY: 0, // Drag offset Y
     isPainting: false, // Is painting (drag to paint)
     lastPaintedCell: null, // Last painted cell {x, y} to prevent duplicates
-    objects: [], // { x, y, path, img, isFree, rotation }
+    editorMode: 'ground',
+    objects: [], // { x, y, path, img, isFree, rotation, placementLayer }
     isCreated: false,
     lastPanX: 0,
     lastPanY: 0,
     rotation: 0 // Canvas rotation angle (0 or 45)
 };
 
+export const setSubmapEditorMode = (mode) => {
+    submapState.editorMode = mode;
+    submapState.selectedTile = null;
+    submapState.selectedTileImg = null;
+    submapState.selectedObject = null;
+    submapState.isPainting = false;
+    submapState.lastPaintedCell = null;
+    document.querySelectorAll('#submap-tab .obj-item, #submapobjects-tab .obj-item').forEach(item => {
+        item.style.border = '2px solid transparent';
+    });
+    const panel = document.getElementById('objectRotationPanel');
+    if (panel) panel.style.display = 'none';
+    drawSubmap();
+};
+
+const getObjectPlacementLayer = (obj) => {
+    if (obj.placementLayer) return obj.placementLayer;
+    return obj.path && obj.path.startsWith('/assets/Map/topdown/') ? 'ground' : 'objects';
+};
+
 export const setupSubmapEditor = () => {
     // Load tiles for submap editor
-    const submapTilesList = document.getElementById('submap-tiles-list');
     const submapTopdownList = document.getElementById('submap-topdown-list');
-    const submapDesertList = document.getElementById('submap-desert-list');
-    const submapForestList = document.getElementById('submap-forest-list');
+    const submapObjectTilesList = document.getElementById('submap-object-tiles-list');
+    const submapObjectDesertList = document.getElementById('submap-object-desert-list');
+    const submapObjectForestList = document.getElementById('submap-object-forest-list');
+    const loadSubmapForObjectsBtn = document.getElementById('loadSubmapForObjectsBtn');
     
     // Load ALL Map2 tiles from server
     fetch('http://localhost:3000/get-map2-tiles')
@@ -45,7 +67,7 @@ export const setupSubmapEditor = () => {
         .then(data => {
             console.log(`Loading ${data.tiles.length} tiles from Map2 folder`);
             data.tiles.forEach(path => {
-                createSubmapItem(path, submapTilesList);
+                createSubmapItem(path, submapObjectTilesList, 'objects');
             });
         })
         .catch(err => {
@@ -62,14 +84,14 @@ export const setupSubmapEditor = () => {
                 '/assets/Map/Map2/north-west.png',
             ];
             mapAssets.forEach(path => {
-                createSubmapItem(path, submapTilesList);
+                createSubmapItem(path, submapObjectTilesList, 'objects');
             });
         });
     
     // Load desert objects
     for (let i = 0; i < 12; i++) {
         const path = `/assets/Object/desert/desert_obj_${i}.png`;
-        createSubmapItem(path, submapDesertList);
+        createSubmapItem(path, submapObjectDesertList, 'objects');
     }
     
     // Load topdown assets from server
@@ -78,7 +100,7 @@ export const setupSubmapEditor = () => {
         .then(data => {
             console.log(`Loading ${data.tiles.length} topdown tiles`);
             data.tiles.forEach(path => {
-                createSubmapItem(path, submapTopdownList);
+                createSubmapItem(path, submapTopdownList, 'ground');
             });
         })
         .catch(err => {
@@ -114,14 +136,19 @@ export const setupSubmapEditor = () => {
                 '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (10).png',
             ];
             topdownAssets.forEach(path => {
-                createSubmapItem(path, submapTopdownList);
+                createSubmapItem(path, submapTopdownList, 'ground');
             });
         });
     
     // Load forest objects
     for (let i = 0; i < 16; i++) {
         const path = `/assets/Object/Forest/forest_obj_${i}.png`;
-        createSubmapItem(path, submapForestList);
+        createSubmapItem(path, submapObjectForestList, 'objects');
+    }
+    
+    refreshSubmapObjectLoadList();
+    if (loadSubmapForObjectsBtn) {
+        loadSubmapForObjectsBtn.onclick = loadSelectedSubmapForObjects;
     }
     
     // Auto-create map when inputs change
@@ -249,16 +276,21 @@ export const setupSubmapEditor = () => {
     autoUpdateSubmap();
 };
 
-const createSubmapItem = (path, parent) => {
+const createSubmapItem = (path, parent, placementLayer) => {
+    if (!parent) return;
     const div = document.createElement('div');
     div.className = 'obj-item';
+    div.dataset.placementLayer = placementLayer;
     const label = path.split('/').pop();
     div.innerHTML = `<img src="${path}"><span>${label}</span>`;
-    div.onclick = (e) => selectSubmapTile(path, e);
+    div.onclick = (e) => selectSubmapTile(path, placementLayer, e);
     parent.appendChild(div);
 };
 
-const selectSubmapTile = (path, e) => {
+const selectSubmapTile = (path, placementLayer, e) => {
+    if (submapState.editorMode !== placementLayer) {
+        return;
+    }
     submapState.selectedTile = path;
     const img = new Image();
     img.onload = () => {
@@ -267,11 +299,103 @@ const selectSubmapTile = (path, e) => {
     img.src = path;
     
     // Visual feedback
-    document.querySelectorAll('#submap-tab .obj-item').forEach(item => {
+    document.querySelectorAll('#submap-tab .obj-item, #submapobjects-tab .obj-item').forEach(item => {
         item.style.border = '2px solid transparent';
     });
     e.currentTarget.style.border = '2px solid #1abc9c';
 };
+
+const refreshSubmapObjectLoadList = async () => {
+    const select = document.getElementById('submapObjectLoadSelect');
+    if (!select) return;
+    
+    try {
+        const response = await fetch('http://localhost:3000/get-submaps');
+        const result = await response.json();
+        const submaps = result.submaps || [];
+        
+        select.innerHTML = '';
+        if (submaps.length === 0) {
+            select.innerHTML = '<option value="">Chưa có sub-map nào</option>';
+            return;
+        }
+        
+        submaps.forEach((submap, index) => {
+            const option = document.createElement('option');
+            option.value = String(index);
+            option.textContent = `${submap.name} (${submap.width}x${submap.height})`;
+            select.appendChild(option);
+        });
+        select._submaps = submaps;
+    } catch (err) {
+        console.error('Error loading submaps:', err);
+        select.innerHTML = '<option value="">Lỗi tải danh sách</option>';
+    }
+};
+
+const loadSelectedSubmapForObjects = async () => {
+    const select = document.getElementById('submapObjectLoadSelect');
+    if (!select || !select._submaps || !select.value) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa chọn Sub-Map!',
+            text: 'Vui lòng chọn sub-map đã lưu để đặt object.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+        return;
+    }
+    
+    const submap = select._submaps[parseInt(select.value, 10)];
+    if (!submap) return;
+    
+    submapState.name = submap.name;
+    submapState.width = submap.width;
+    submapState.height = submap.height;
+    submapState.tileSize = submap.tileSize || 32;
+    submapState.gridType = submap.gridType || 'square';
+    submapState.zoom = 1;
+    submapState.isCreated = true;
+    submapState.editorMode = 'objects';
+    submapState.selectedTile = null;
+    submapState.selectedTileImg = null;
+    submapState.selectedObject = null;
+    submapState.objects = await Promise.all((submap.objects || []).map(loadSubmapObjectImage));
+    
+    document.getElementById('submapName').value = submapState.name;
+    document.getElementById('submapWidth').value = submapState.width;
+    document.getElementById('submapHeight').value = submapState.height;
+    document.getElementById('submapTileSize').value = submapState.tileSize;
+    document.getElementById('submapGridType').value = submapState.gridType;
+    
+    submapState.panX = (submapCanvas.width - submapState.width * submapState.tileSize) / 2;
+    submapState.panY = (submapCanvas.height - submapState.height * submapState.tileSize) / 2;
+    
+    drawSubmap();
+    
+    Swal.fire({
+        icon: 'success',
+        title: 'Đã load Sub-Map!',
+        text: `"${submapState.name}" đã sẵn sàng để đặt object.`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+};
+
+const loadSubmapObjectImage = (obj) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({
+        ...obj,
+        img,
+        placementLayer: getObjectPlacementLayer(obj)
+    });
+    img.onerror = () => resolve({
+        ...obj,
+        img: null,
+        placementLayer: getObjectPlacementLayer(obj)
+    });
+    img.src = obj.path;
+});
 
 const createSubmap = () => {
     const name = document.getElementById('submapName').value.trim();
@@ -384,7 +508,11 @@ const drawSubmap = () => {
     submapCtx.restore();
     
     // Draw objects WITHOUT rotation (always upright)
-    submapState.objects.forEach(obj => {
+    [...submapState.objects].sort((a, b) => {
+        const layerA = getObjectPlacementLayer(a) === 'objects' ? 1 : 0;
+        const layerB = getObjectPlacementLayer(b) === 'objects' ? 1 : 0;
+        return layerA - layerB;
+    }).forEach(obj => {
         if (obj.img && obj.img.complete) {
             let screenX, screenY;
             
@@ -615,6 +743,7 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
                 path: submapState.selectedTile,
                 img: submapState.selectedTileImg,
                 isFree: true,
+                placementLayer: submapState.editorMode,
                 rotation: 0
             });
             drawSubmap();
@@ -667,12 +796,12 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
             if (submapState.eraseMode) {
                 // Remove objects at this grid position
                 submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
                 );
             } else if (submapState.selectedTileImg) {
                 // Remove existing grid object at this position
                 submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
                 );
                 
                 // Add new object
@@ -683,6 +812,7 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
                     img: submapState.selectedTileImg,
                     isFree: false,
                     gridType: submapState.gridType, // Store grid type for rendering
+                    placementLayer: submapState.editorMode,
                     rotation: 0
                 });
             }
@@ -933,6 +1063,7 @@ const onSubmapMouseUp = (e) => {
     
     for (let i = submapState.objects.length - 1; i >= 0; i--) {
         const obj = submapState.objects[i];
+        if (getObjectPlacementLayer(obj) !== submapState.editorMode) continue;
         let screenX, screenY;
         
         if (obj.isFree) {
@@ -995,6 +1126,7 @@ const onSubmapMouseUp = (e) => {
                 path: submapState.selectedTile,
                 img: submapState.selectedTileImg,
                 isFree: true,
+                placementLayer: submapState.editorMode,
                 rotation: 0
             });
             console.log('Added free object, total objects:', submapState.objects.length);
@@ -1057,13 +1189,13 @@ const onSubmapMouseUp = (e) => {
                 // Remove objects at this grid position
                 const beforeCount = submapState.objects.length;
                 submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
                 );
                 console.log('Erased objects:', beforeCount - submapState.objects.length);
             } else if (submapState.selectedTileImg) {
                 // Remove existing grid object at this position
                 submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
                 );
                 
                 // Add new object
@@ -1074,6 +1206,7 @@ const onSubmapMouseUp = (e) => {
                     img: submapState.selectedTileImg,
                     isFree: false,
                     gridType: submapState.gridType, // Store grid type for rendering
+                    placementLayer: submapState.editorMode,
                     rotation: 0
                 });
                 console.log('Added grid object, total objects:', submapState.objects.length);
@@ -1123,6 +1256,7 @@ const saveSubmap = async () => {
             path: obj.path,
             isFree: obj.isFree || false,
             gridType: obj.gridType || 'square', // Save object's grid type
+            placementLayer: getObjectPlacementLayer(obj),
             rotation: obj.rotation || 0 // Save object rotation
         }))
     };
