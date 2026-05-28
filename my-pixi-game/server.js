@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { initDatabase } from './Server/database.js';
-import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop } from './Server/playerManager.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType } from './Server/playerManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -236,6 +236,49 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+  }
+  // Endpoint để lưu collider data theo object type ID
+  else if (req.method === 'POST' && req.url === '/save-object-collider-data') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { objectTypeId, colliderData } = JSON.parse(body);
+        const success = saveObjectColliderDataByType(objectTypeId, colliderData);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi save object collider data:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Endpoint để lấy collider data theo object type ID
+  else if (req.method === 'GET' && req.url.startsWith('/get-object-collider-data?')) {
+    try {
+      const urlParams = new URLSearchParams(req.url.split('?')[1]);
+      const objectTypeId = urlParams.get('objectTypeId');
+      const colliderData = getObjectColliderDataByType(objectTypeId);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ colliderData }));
+    } catch (err) {
+      console.error("❌ Lỗi get object collider data:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Endpoint để lấy tất cả collider data theo object type ID
+  else if (req.method === 'GET' && req.url === '/get-all-object-collider-data') {
+    try {
+      const allColliderData = getAllObjectColliderDataByType();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ allColliderData }));
+    } catch (err) {
+      console.error("❌ Lỗi get all object collider data:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
   }
   // Endpoint để nhận dữ liệu va chạm từ Editor
   else if (req.method === 'POST' && req.url === '/save-collision') {

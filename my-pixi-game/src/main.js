@@ -217,22 +217,33 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         stage4: []  // Frames 13-16: Cây chín vàng
     };
     
-    // Stage 1: Mầm non (frames 1-4)
+    // Stage 1: Mầm non (frames 1-4) - lặp lại để animation mượt hơn
     for (let i = 0; i < 4; i++) {
         riceGrowthFrames.stage1.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
     }
-    // Stage 2: Cây non (frames 5-8)
+    // Lặp lại frame 1-4 để tạo animation loop mượt hơn
+    riceGrowthFrames.stage1.push(riceGrowthFrames.stage1[0], riceGrowthFrames.stage1[1], riceGrowthFrames.stage1[2], riceGrowthFrames.stage1[3]);
+    
+    // Stage 2: Cây non (frames 5-8) - lặp lại để animation mượt hơn
     for (let i = 4; i < 8; i++) {
         riceGrowthFrames.stage2.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
     }
-    // Stage 3: Cây cao có hoa (frames 9-12)
+    // Lặp lại frame 5-8 để tạo animation loop mượt hơn
+    riceGrowthFrames.stage2.push(riceGrowthFrames.stage2[0], riceGrowthFrames.stage2[1], riceGrowthFrames.stage2[2], riceGrowthFrames.stage2[3]);
+    
+    // Stage 3: Cây cao có hoa (frames 9-12) - lặp lại để animation mượt hơn
     for (let i = 8; i < 12; i++) {
         riceGrowthFrames.stage3.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
     }
-    // Stage 4: Cây chín vàng (frames 13-16)
+    // Lặp lại frame 9-12 để tạo animation loop mượt hơn
+    riceGrowthFrames.stage3.push(riceGrowthFrames.stage3[0], riceGrowthFrames.stage3[1], riceGrowthFrames.stage3[2], riceGrowthFrames.stage3[3]);
+    
+    // Stage 4: Cây chín vàng (frames 13-16) - lặp lại để animation mượt hơn
     for (let i = 12; i < 16; i++) {
         riceGrowthFrames.stage4.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
     }
+    // Lặp lại frame 13-16 để tạo animation loop mượt hơn
+    riceGrowthFrames.stage4.push(riceGrowthFrames.stage4[0], riceGrowthFrames.stage4[1], riceGrowthFrames.stage4[2], riceGrowthFrames.stage4[3]);
 
     // --- TẠO THẾ GIỚI GAME (World Container) ---
     const world = new Container();
@@ -245,6 +256,17 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     let showDebugColliders = false;
     const debugGraphics = new Container();
     world.addChild(debugGraphics);
+
+    // Load collider data theo object type ID từ server
+    let objectColliderDataByType = {};
+    try {
+        const response = await fetch(`${SOCKET_URL}/get-all-object-collider-data`);
+        const result = await response.json();
+        objectColliderDataByType = result.allColliderData || {};
+        console.log("✅ Loaded object collider data by type:", Object.keys(objectColliderDataByType));
+    } catch (err) {
+        console.error("❌ Lỗi load object collider data by type:", err);
+    }
 
     // === RENDER WORLDMAP (NEW SYSTEM) ===
     if (worldmapData && submapsData.length > 0) {
@@ -541,11 +563,18 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     };
 
     // Hàm kiểm tra va chạm với special collider (z-index up/down)
-    const checkSpecialCollider = (char, obj, points) => {
+    const checkSpecialCollider = (char, obj, points, useTriggerZone = false) => {
         if (!points || points.length === 0) return false;
 
         const charScale = char.scale.x;
-        const charPoints = char.colliderData && char.colliderData.hasPixelCollider ? char.colliderData.points : null;
+        let charPoints = null;
+
+        // Nếu useTriggerZone = true, dùng triggerZonePoints
+        if (useTriggerZone && char.colliderData && char.colliderData.triggerZonePoints) {
+            charPoints = char.colliderData.triggerZonePoints;
+        } else {
+            charPoints = char.colliderData && char.colliderData.hasPixelCollider ? char.colliderData.points : null;
+        }
 
         // Nếu player có pixel collider
         if (charPoints) {
@@ -557,8 +586,11 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                     const objPx = obj.x + (p.x - obj.width * obj.anchor.x) * obj.scale;
                     const objPy = obj.y + (p.y - obj.height * obj.anchor.y) * obj.scale;
 
-                    if (Math.abs(charPx - objPx) < (obj.scale + charScale) / 2 &&
-                        Math.abs(charPy - objPy) < (obj.scale + charScale) / 2) {
+                    const distX = Math.abs(charPx - objPx);
+                    const distY = Math.abs(charPy - objPy);
+                    const threshold = (obj.scale + charScale) / 2;
+
+                    if (distX < threshold && distY < threshold) {
                         return true;
                     }
                 }
@@ -771,7 +803,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     let isSeeding = false; // Khóa di chuyển khi đang trồng cây
 
     // --- HÀM TẠO CÂY TRỒNG ---
-    const createPlantedCrop = (x, y, cropData, saveToServer = true, plantedAt = null) => {
+    const createPlantedCrop = (x, y, cropData, saveToServer = true, plantedAt = null, plantedCropId = null) => {
         const tileSize = 32;
         const gridX = Math.round(x / tileSize) * tileSize;
         const gridY = Math.round(y / tileSize) * tileSize;
@@ -794,7 +826,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         cropSprite.anchor.set(0.5, 1); // Anchor ở dưới để cây mọc lên từ đất
         cropSprite.scale.set(0.5); // Scale nhỏ lại cho phù hợp với tile 32x32
         cropSprite.zIndex = Math.floor(gridY * 10); // Depth sorting theo Y
-        cropSprite.animationSpeed = 0.05; // Chậm để tạo hiệu ứng đung đưa
+        cropSprite.animationSpeed = 0.02; // Chậm để tạo hiệu ứng đung đưa
         cropSprite.loop = true;
         cropSprite.play();
 
@@ -808,18 +840,31 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             4: `/assets/seed/${RICE_FRAME_FILES[12]}` // Frame 13-16: Stage 4
         };
         
-        // Load collider data cho crop (dùng path của stage hiện tại)
-        const cropPath = stageToPath[1]; // Stage 1
-        const hitData = collisionData[cropPath];
+        // Load collider data cho crop - ưu tiên dùng objectTypeId từ database
+        const objectTypeId = `crop_${cropData.id}`;
         let hitPoints = [], zIndexUpPoints = [], zIndexDownPoints = [], triggerZonePoints = [];
-        if (hitData) {
-            if (Array.isArray(hitData)) {
-                hitPoints = hitData;
-            } else {
-                hitPoints = hitData.normal || [];
-                zIndexUpPoints = hitData.z_index_up || [];
-                zIndexDownPoints = hitData.z_index_down || [];
-                triggerZonePoints = hitData.trigger_zone || [];
+        
+        const cropPath = stageToPath[1]; // Stage 1
+        
+        // Thử load collider data theo objectTypeId từ database
+        if (objectColliderDataByType[objectTypeId]) {
+            const colliderData = objectColliderDataByType[objectTypeId];
+            hitPoints = colliderData.normal || [];
+            zIndexUpPoints = colliderData.z_index_up || [];
+            zIndexDownPoints = colliderData.z_index_down || [];
+            triggerZonePoints = colliderData.trigger_zone || [];
+        } else {
+            // Fallback: load từ collision_data.json theo path
+            const hitData = collisionData[cropPath];
+            if (hitData) {
+                if (Array.isArray(hitData)) {
+                    hitPoints = hitData;
+                } else {
+                    hitPoints = hitData.normal || [];
+                    zIndexUpPoints = hitData.z_index_up || [];
+                    zIndexDownPoints = hitData.z_index_down || [];
+                    triggerZonePoints = hitData.trigger_zone || [];
+                }
             }
         }
 
@@ -831,7 +876,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             plantedAt: plantedAt || Date.now(),
             currentStage: 1, // Bắt đầu từ stage 1
             maxStage: 4, // Tổng cộng 4 giai đoạn
-            // Collider data
+            // Collider data - dùng plantedCropId làm objectTypeId để mỗi cây có ID riêng
+            objectTypeId: plantedCropId ? `planted_crop_${plantedCropId}` : `crop_${cropData.id}`,
             points: hitPoints,
             zIndexUpPoints: zIndexUpPoints,
             zIndexDownPoints: zIndexDownPoints,
@@ -841,7 +887,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             scale: 0.5,
             anchor: cropSprite.anchor,
             path: cropPath,
-            stageToPath: stageToPath // Lưu mapping để update khi crop lớn lên
+            stageToPath: stageToPath, // Lưu mapping để update khi crop lớn lên
+            plantedCropId: plantedCropId // Lưu ID của planted crop từ database
         };
         
         plantedCrops.push(cropObject);
@@ -888,9 +935,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             const data = await response.json();
             const crops = data.crops || [];
             
-            console.log(`📦 Loading ${crops.length} planted crops from server...`);
-            
-            crops.forEach(crop => {
+            crops.forEach((crop, index) => {
                 const cropData = {
                     id: crop.crop_type_id,
                     name: crop.crop_name,
@@ -899,10 +944,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 };
                 // Parse planted_at từ server (SQLite datetime format)
                 const plantedAt = new Date(crop.planted_at).getTime();
-                createPlantedCrop(crop.x, crop.y, cropData, false, plantedAt);
+                createPlantedCrop(crop.x, crop.y, cropData, false, plantedAt, crop.id);
             });
-            
-            console.log(`✅ Loaded ${crops.length} planted crops`);
         } catch (err) {
             console.error("❌ Lỗi load planted crops:", err);
         }
@@ -1349,17 +1392,20 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
     // Handle both old array format and new object format
     let playerHitPoints = null;
+    let playerTriggerZonePoints = null;
     if (playerHitData) {
         if (Array.isArray(playerHitData)) {
             playerHitPoints = playerHitData;
         } else if (typeof playerHitData === 'object' && playerHitData.normal) {
             playerHitPoints = playerHitData.normal;
+            playerTriggerZonePoints = playerHitData.trigger_zone || [];
         }
     }
 
     characterContainer.colliderData = {
         hasPixelCollider: !!playerHitPoints,
         points: playerHitPoints || null,
+        triggerZonePoints: playerTriggerZonePoints || [],
         radius: 15, // Fallback radius
         width: playerTexture ? playerTexture.width : 30,
         height: playerTexture ? playerTexture.height : 30
@@ -1972,6 +2018,13 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                     const stageFrames = `stage${newStage}`;
                     crop.sprite.textures = riceGrowthFrames[stageFrames];
                     
+                    // Đảm bảo animation tiếp tục play sau khi update textures
+                    crop.sprite.animationSpeed = 0.02;
+                    crop.sprite.loop = true;
+                    if (!crop.sprite.playing) {
+                        crop.sprite.play();
+                    }
+                    
                     // Update collider data
                     const newCropPath = crop.stageToPath[newStage];
                     const newHitData = collisionData[newCropPath];
@@ -2009,19 +2062,45 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
             // Kiểm tra collider z-index up (xanh) - nhân vật ở trên object
             if (checkSpecialCollider(characterContainer, obj, obj.zIndexUpPoints)) {
-                // Dùng z-index dựa trên Y của object + offset lớn
-                charZIndex = Math.floor(obj.y * 10) + 5000; // Offset lớn để đảm bảo ở trên
-                console.log("Z-Index UP triggered - character above object");
+                // Chỉ điều chỉnh nếu object có Y gần với player (trong phạm vi 50 pixel)
+                const yDistance = Math.abs(obj.y - characterContainer.y);
+                if (yDistance < 50) {
+                    // Dùng z-index dựa trên Y của object + offset nhỏ
+                    const objZIndex = Math.floor(obj.y * 10);
+                    charZIndex = objZIndex + 100; // Offset nhỏ hơn để không ảnh hưởng object xa
+                }
             }
             // Kiểm tra collider z-index down (vàng) - nhân vật ở dưới object
             else if (checkSpecialCollider(characterContainer, obj, obj.zIndexDownPoints)) {
-                // Dùng z-index dựa trên Y của object - offset lớn
-                charZIndex = Math.floor(obj.y * 10) - 5000; // Offset lớn để đảm bảo ở dưới
-                console.log("Z-Index DOWN triggered - character below object");
+                // Chỉ điều chỉnh nếu object có Y gần với player (trong phạm vi 50 pixel)
+                const yDistance = Math.abs(obj.y - characterContainer.y);
+                if (yDistance < 50) {
+                    // Dùng z-index dựa trên Y của object - offset nhỏ
+                    const objZIndex = Math.floor(obj.y * 10);
+                    charZIndex = objZIndex - 100; // Offset nhỏ hơn để không ảnh hưởng object xa
+                }
             }
         });
 
         characterContainer.zIndex = charZIndex;
+
+        // Kiểm tra trigger zone của player chạm vào z_index_up của object
+        if (characterContainer.colliderData.triggerZonePoints && characterContainer.colliderData.triggerZonePoints.length > 0) {
+            collidableObjects.forEach(obj => {
+                if (!obj.sprite || !obj.zIndexUpPoints || obj.zIndexUpPoints.length === 0) return;
+
+                // Check collision giữa trigger zone của player và z_index_up của object
+                const isColliding = checkSpecialCollider(characterContainer, obj, obj.zIndexUpPoints, true);
+                if (isColliding) {
+                    // Chỉ điều chỉnh nếu object có Y gần với player (trong phạm vi 50 pixel)
+                    const yDistance = Math.abs(obj.y - characterContainer.y);
+                    if (yDistance < 50) {
+                        // Player có z-index cao hơn object
+                        characterContainer.zIndex = Math.floor(obj.y * 10) + 100;
+                    }
+                }
+            });
+        }
 
         // Kiểm tra trigger zone (tím) giữa các objects
         // Nếu object A có trigger zone chạm vào z_index_up của object B → A có z-index cao hơn B
@@ -2036,14 +2115,45 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
                     // A có z-index cao hơn B
                     objA.sprite.zIndex = Math.floor(objB.y * 10) + 5000;
-                    console.log("Trigger zone: Object A above Object B");
                 }
+            });
+        });
+
+        // Kiểm tra trigger zone theo object type ID
+        // Nếu object A có objectTypeId và trigger zone chạm vào z_index_up của object B có cùng objectTypeId
+        const objectsByType = {};
+        collidableObjects.forEach(obj => {
+            if (obj.objectTypeId) {
+                if (!objectsByType[obj.objectTypeId]) {
+                    objectsByType[obj.objectTypeId] = [];
+                }
+                objectsByType[obj.objectTypeId].push(obj);
+            }
+        });
+
+        // Check trigger zone giữa các objects có cùng objectTypeId
+        Object.keys(objectsByType).forEach(typeId => {
+            const objects = objectsByType[typeId];
+            if (objects.length < 2) return;
+
+            objects.forEach(objA => {
+                if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
+
+                objects.forEach(objB => {
+                    if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
+                    if (objA === objB) return;
+
+                    // Check collision giữa trigger zone của A và z_index_up của B
+                    if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
+                        // A có z-index cao hơn B
+                        objA.sprite.zIndex = Math.floor(objB.y * 10) + 5000;
+                    }
+                });
             });
         });
 
         // Debug: Log Y của nhân vật và object gần nhất
         if (moved) {
-            console.log(`Character Y: ${characterContainer.y}, zIndex: ${characterContainer.zIndex}`);
             // Tìm object gần nhất
             let nearestObj = null;
             let nearestDist = Infinity;
@@ -2054,9 +2164,6 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                     nearestObj = sprite;
                 }
             });
-            if (nearestObj) {
-                console.log(`Nearest Object Y: ${nearestObj.y}, zIndex: ${nearestObj.zIndex}, Diff: ${nearestObj.y - characterContainer.y}`);
-            }
         }
 
         // Gửi dữ liệu vị trí lên server nếu có thay đổi (CHỈ movement)

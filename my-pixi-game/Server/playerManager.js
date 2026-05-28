@@ -1,4 +1,4 @@
-import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop } from './database.js';
+import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop, saveObjectColliderData, getObjectColliderData, getAllObjectColliderData } from './database.js';
 
 // Check if account exists
 export function checkAccount(username) {
@@ -96,4 +96,17 @@ export function harvestCropData(x, y) {
 
 export function removePlantedCrop(x, y) {
   return deletePlantedCrop(x, y);
+}
+
+// Object collider data management
+export function saveObjectColliderDataByType(objectTypeId, colliderData) {
+  return saveObjectColliderData(objectTypeId, colliderData);
+}
+
+export function getObjectColliderDataByType(objectTypeId) {
+  return getObjectColliderData(objectTypeId);
+}
+
+export function getAllObjectColliderDataByType() {
+  return getAllObjectColliderData();
 }

@@ -81,6 +81,200 @@ clearBtn.onclick = () => {
     }
 };
 
+// Copy collider data to selected frames in character folder
+const copyAllFramesBtn = document.getElementById('copyAllFramesBtn');
+copyAllFramesBtn.onclick = async () => {
+    if (!currentPath) {
+        alert("Vui lòng chọn một asset trước!");
+        return;
+    }
+
+    // Get current collider data
+    const currentData = hitboxes[currentPath];
+    if (!currentData || (currentData.normal.length === 0 && currentData.z_index_up.length === 0 && currentData.z_index_down.length === 0 && (!currentData.trigger_zone || currentData.trigger_zone.length === 0))) {
+        alert("Không có collider data để copy!");
+        return;
+    }
+
+    // Calculate root folder (folder before assets)
+    // Example: /assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_000.png
+    // Root folder: A_cute_chibi_anime_girl
+    const parts = currentPath.split('/');
+    console.log("Path parts:", parts);
+    const assetsIndex = parts.indexOf('assets');
+    if (assetsIndex === -1 || assetsIndex + 1 >= parts.length) {
+        alert("Path không hợp lệ!");
+        return;
+    }
+    const rootFolder = parts[assetsIndex + 1]; // A_cute_chibi_anime_girl
+    const rootFolderPath = `/assets/${rootFolder}/`;
+    
+    console.log("Current path:", currentPath);
+    console.log("Root folder:", rootFolder);
+    console.log("Root folder path:", rootFolderPath);
+
+    // Load collision_data.json to find all frames in root folder
+    try {
+        const response = await fetch('/assets/Object/collision_data.json');
+        const collisionData = await response.json();
+        console.log("Total paths in collisionData:", Object.keys(collisionData).length);
+
+        // Find all frames in root folder from collisionData
+        const framesInFolder = [];
+        for (let path in collisionData) {
+            if (path.startsWith(rootFolderPath)) {
+                framesInFolder.push(path);
+            }
+        }
+        console.log("Frames in folder from collisionData:", framesInFolder.length);
+
+        // Also add animation paths from constants (for frames not yet in collisionData)
+        const animationPaths = [
+            '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/',
+            '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/',
+            '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/',
+            '/assets/A_cute_chibi_anime_girl/animations/dig/',
+            '/assets/A_cute_chibi_anime_girl/animations/seeding/'
+        ];
+
+        // Add all possible frame paths (8 directions * 30 frames per animation)
+        const directions = ['south', 'south-west', 'west', 'north-west', 'north', 'north-east', 'east', 'south-east'];
+        animationPaths.forEach(animPath => {
+            directions.forEach(dir => {
+                for (let i = 0; i < 30; i++) {
+                    const frameNum = String(i).padStart(3, '0');
+                    const framePath = `${animPath}${dir}/frame_${frameNum}.png`;
+                    if (!framesInFolder.includes(framePath)) {
+                        framesInFolder.push(framePath);
+                    }
+                }
+            });
+        });
+
+        console.log("Total frames in folder (including inferred):", framesInFolder.length);
+
+        if (framesInFolder.length === 0) {
+            alert("Không tìm thấy frame nào trong folder!");
+            return;
+        }
+
+        // Show popup with frame list
+        showCopyPopup(framesInFolder, currentData);
+    } catch (err) {
+        console.error("Lỗi khi load collision_data.json:", err);
+        alert("Lỗi khi load collision_data.json!");
+    }
+};
+
+// Show copy popup with frame list
+let selectedFrames = [];
+let currentColliderData = null;
+
+const showCopyPopup = (frames, data) => {
+    selectedFrames = [];
+    currentColliderData = data;
+    
+    const frameList = document.getElementById('frameList');
+    frameList.innerHTML = '';
+    
+    frames.forEach(frame => {
+        const frameName = frame.split('/').pop();
+        const div = document.createElement('div');
+        div.style.marginBottom = '8px';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = frame;
+        checkbox.onchange = (e) => {
+            if (e.target.checked) {
+                selectedFrames.push(frame);
+            } else {
+                selectedFrames = selectedFrames.filter(f => f !== frame);
+            }
+        };
+        
+        const label = document.createElement('span');
+        label.textContent = frameName;
+        label.style.marginLeft = '8px';
+        label.style.fontSize = '12px';
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        frameList.appendChild(div);
+    });
+    
+    document.getElementById('copyPopup').style.display = 'block';
+    document.getElementById('popupOverlay').style.display = 'block';
+};
+
+// Close popup
+const closeCopyPopup = () => {
+    document.getElementById('copyPopup').style.display = 'none';
+    document.getElementById('popupOverlay').style.display = 'none';
+    selectedFrames = [];
+    currentColliderData = null;
+};
+
+// Select all frames
+document.getElementById('selectAllFramesBtn').onclick = () => {
+    const checkboxes = document.querySelectorAll('#frameList input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = true;
+        if (!selectedFrames.includes(cb.value)) {
+            selectedFrames.push(cb.value);
+        }
+    });
+};
+
+// Deselect all frames
+document.getElementById('deselectAllFramesBtn').onclick = () => {
+    const checkboxes = document.querySelectorAll('#frameList input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    selectedFrames = [];
+};
+
+// Cancel copy
+document.getElementById('cancelCopyBtn').onclick = closeCopyPopup;
+
+// Confirm copy
+document.getElementById('confirmCopyBtn').onclick = () => {
+    console.log("Selected frames:", selectedFrames.length);
+    console.log("Selected frames list:", selectedFrames);
+    
+    if (selectedFrames.length === 0) {
+        alert("Vui lòng chọn ít nhất một frame!");
+        return;
+    }
+    
+    if (!currentColliderData) {
+        alert("Không có collider data!");
+        return;
+    }
+    
+    // Copy collider data to selected frames
+    selectedFrames.forEach(frame => {
+        console.log("Copying to:", frame);
+        hitboxes[frame] = {
+            normal: [...currentColliderData.normal],
+            z_index_up: [...currentColliderData.z_index_up],
+            z_index_down: [...currentColliderData.z_index_down],
+            trigger_zone: currentColliderData.trigger_zone ? [...currentColliderData.trigger_zone] : []
+        };
+    });
+    
+    const copiedCount = selectedFrames.length;
+    updateOutput();
+    closeCopyPopup();
+    alert(`Đã copy collider data sang ${copiedCount} frame!`);
+};
+
+// Close popup when clicking overlay
+document.getElementById('popupOverlay').onclick = closeCopyPopup;
+
 // Toggle controls panel
 const toggleControlsBtn = document.getElementById('toggleControlsBtn');
 const controlsPanel = document.getElementById('controls');
@@ -94,6 +288,32 @@ toggleControlsBtn.onclick = () => {
     } else {
         controlsPanel.classList.remove('collapsed');
         toggleControlsBtn.textContent = 'Thu gọn ▲';
+    }
+};
+
+// Load collision data from server on startup
+const loadCollisionData = async () => {
+    try {
+        const response = await fetch('/assets/Object/collision_data.json');
+        const collisionData = await response.json();
+        
+        // Merge into hitboxes
+        for (let path in collisionData) {
+            const data = collisionData[path];
+            if (Array.isArray(data)) {
+                hitboxes[path] = { normal: data, z_index_up: [], z_index_down: [], trigger_zone: [] };
+            } else {
+                hitboxes[path] = {
+                    normal: data.normal || [],
+                    z_index_up: data.z_index_up || [],
+                    z_index_down: data.z_index_down || [],
+                    trigger_zone: data.trigger_zone || []
+                };
+            }
+        }
+        console.log("✅ Loaded collision data from server");
+    } catch (err) {
+        console.error("❌ Lỗi khi load collision data:", err);
     }
 };
 
@@ -378,6 +598,61 @@ document.getElementById('saveBtn').onclick = async () => {
     }
 };
 
+document.getElementById('saveByTypeBtn').onclick = async () => {
+    const objectTypeId = document.getElementById('objectTypeId').value.trim();
+    if (!objectTypeId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Cảnh báo!',
+            text: 'Vui lòng nhập Object Type ID!',
+        });
+        return;
+    }
+
+    const currentData = hitboxes[currentPath];
+    if (!currentData) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Cảnh báo!',
+            text: 'Không có collider data để lưu!',
+        });
+        return;
+    }
+
+    const colliderData = {
+        normal: currentData.normal || [],
+        z_index_up: currentData.z_index_up || [],
+        z_index_down: currentData.z_index_down || [],
+        trigger_zone: currentData.trigger_zone || []
+    };
+
+    try {
+        const response = await fetch('http://localhost:3000/save-object-collider-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ objectTypeId, colliderData })
+        });
+        const result = await response.json();
+        if (result.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công!',
+                text: `Đã lưu collider data cho Object Type ID: ${objectTypeId}`,
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+    } catch (err) {
+        console.error("Lỗi:", err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi!',
+            text: 'Không thể kết nối tới Server.',
+        });
+    }
+};
+
+loadCollisionData();
 loadLists();
 setupTabs();
 setupSubmapEditor();

@@ -100,6 +100,17 @@ export async function initDatabase() {
     )
   `);
 
+  // Bảng object_collider_data - Lưu trữ collider data theo object type ID
+  db.run(`
+    CREATE TABLE IF NOT EXISTS object_collider_data (
+      object_type_id TEXT PRIMARY KEY,
+      normal TEXT,
+      z_index_up TEXT,
+      z_index_down TEXT,
+      trigger_zone TEXT
+    )
+  `);
+
   // Thêm dữ liệu mẫu cho crop_types (chỉ thêm nếu chưa có)
   db.run(`
     INSERT OR IGNORE INTO crop_types (name, display_name, growth_time, sprite_path)
@@ -310,6 +321,76 @@ export function clearAllFarmedTiles() {
   }
 }
 
+// --- OBJECT COLLIDER DATA MANAGEMENT ---
+export function saveObjectColliderData(objectTypeId, colliderData) {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO object_collider_data (object_type_id, normal, z_index_up, z_index_down, trigger_zone)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  try {
+    stmt.run([
+      objectTypeId,
+      JSON.stringify(colliderData.normal || []),
+      JSON.stringify(colliderData.z_index_up || []),
+      JSON.stringify(colliderData.z_index_down || []),
+      JSON.stringify(colliderData.trigger_zone || [])
+    ]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    console.error("❌ Lỗi save object collider data:", err);
+    return false;
+  }
+}
+
+export function getObjectColliderData(objectTypeId) {
+  const stmt = db.prepare(`
+    SELECT normal, z_index_up, z_index_down, trigger_zone
+    FROM object_collider_data
+    WHERE object_type_id = ?
+  `);
+  try {
+    stmt.bind([objectTypeId]);
+    if (stmt.step()) {
+      const result = stmt.getAsObject();
+      stmt.free();
+      return {
+        normal: JSON.parse(result.normal || '[]'),
+        z_index_up: JSON.parse(result.z_index_up || '[]'),
+        z_index_down: JSON.parse(result.z_index_down || '[]'),
+        trigger_zone: JSON.parse(result.trigger_zone || '[]')
+      };
+    }
+    stmt.free();
+    return null;
+  } catch (err) {
+    stmt.free();
+    console.error("❌ Lỗi get object collider data:", err);
+    return null;
+  }
+}
+
+export function getAllObjectColliderData() {
+  const stmt = db.prepare(`
+    SELECT object_type_id, normal, z_index_up, z_index_down, trigger_zone
+    FROM object_collider_data
+  `);
+  const results = {};
+  while (stmt.step()) {
+    const result = stmt.getAsObject();
+    results[result.object_type_id] = {
+      normal: JSON.parse(result.normal || '[]'),
+      z_index_up: JSON.parse(result.z_index_up || '[]'),
+      z_index_down: JSON.parse(result.z_index_down || '[]'),
+      trigger_zone: JSON.parse(result.trigger_zone || '[]')
+    };
+  }
+  stmt.free();
+  return results;
+}
+
 // --- CROP TYPES MANAGEMENT ---
 export function getAllCropTypes() {
   const stmt = db.prepare(`
@@ -345,7 +426,7 @@ export function plantCrop(x, y, cropTypeId) {
 export function getAllPlantedCrops() {
   const stmt = db.prepare(`
     SELECT 
-      pc.id, pc.x, pc.y, pc.planted_at, pc.harvested,
+      pc.id, pc.x, pc.y, pc.planted_at, pc.harvested, pc.crop_type_id,
       ct.name as crop_name, ct.display_name, ct.growth_time, ct.sprite_path
     FROM planted_crops pc
     JOIN crop_types ct ON pc.crop_type_id = ct.id

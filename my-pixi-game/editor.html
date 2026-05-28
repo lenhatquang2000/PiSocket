@@ -157,11 +157,33 @@
                 </div>
                 <div class="tool-row">
                     <button id="clearBtn" style="background:#e74c3c">Xóa hết vùng vẽ</button>
+                    <button id="copyAllFramesBtn" style="background:#9b59b6">Copy to all frames</button>
                     <button id="saveBtn" style="background:#3498db">LƯU VÀO SERVER</button>
+                </div>
+                <div class="tool-row" style="margin-top: 10px;">
+                    <label style="color: white; margin-right: 10px;">Object Type ID:</label>
+                    <input type="text" id="objectTypeId" placeholder="Ví dụ: rice_plant" style="flex: 1; padding: 5px; border-radius: 5px; border: 1px solid #555; background: #34495e; color: white;">
+                    <button id="saveByTypeBtn" style="background:#27ae60; margin-left: 10px;">Lưu theo Object Type</button>
                 </div>
                 <textarea id="outputJson" readonly placeholder="Kết quả JSON sẽ hiện ở đây..."></textarea>
             </div>
         </div>
+        
+        <!-- Copy Collider Popup -->
+        <div id="copyPopup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2c3e50; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 600px; max-height: 80vh; overflow-y: auto; color: white;">
+            <h3 style="margin-top: 0;">Copy Collider Data</h3>
+            <p style="margin-bottom: 15px;">Chọn các frame để copy collider data:</p>
+            <div style="margin-bottom: 15px;">
+                <button id="selectAllFramesBtn" style="padding: 5px 10px; margin-right: 10px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">Chọn tất cả</button>
+                <button id="deselectAllFramesBtn" style="padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Bỏ chọn tất cả</button>
+            </div>
+            <div id="frameList" style="max-height: 300px; overflow-y: auto; border: 1px solid #555; padding: 10px; margin-bottom: 15px; background: #34495e; border-radius: 5px;"></div>
+            <div style="text-align: right;">
+                <button id="cancelCopyBtn" style="padding: 8px 16px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Hủy</button>
+                <button id="confirmCopyBtn" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">Copy</button>
+            </div>
+        </div>
+        <div id="popupOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;"></div>
         
         <div id="submap-controls">
             <h3 style="margin-top: 0;">🗺️ Sub-Map Editor</h3>
