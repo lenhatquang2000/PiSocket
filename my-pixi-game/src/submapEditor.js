@@ -23,6 +23,8 @@ export let submapState = {
     isDraggingObject: false, // Is dragging an object
     dragOffsetX: 0, // Drag offset X
     dragOffsetY: 0, // Drag offset Y
+    isPainting: false, // Is painting (drag to paint)
+    lastPaintedCell: null, // Last painted cell {x, y} to prevent duplicates
     objects: [], // { x, y, path, img, isFree, rotation }
     isCreated: false,
     lastPanX: 0,
@@ -33,6 +35,7 @@ export let submapState = {
 export const setupSubmapEditor = () => {
     // Load tiles for submap editor
     const submapTilesList = document.getElementById('submap-tiles-list');
+    const submapTopdownList = document.getElementById('submap-topdown-list');
     const submapDesertList = document.getElementById('submap-desert-list');
     const submapForestList = document.getElementById('submap-forest-list');
     
@@ -68,6 +71,52 @@ export const setupSubmapEditor = () => {
         const path = `/assets/Object/desert/desert_obj_${i}.png`;
         createSubmapItem(path, submapDesertList);
     }
+    
+    // Load topdown assets from server
+    fetch('http://localhost:3000/get-topdown-tiles')
+        .then(res => res.json())
+        .then(data => {
+            console.log(`Loading ${data.tiles.length} topdown tiles`);
+            data.tiles.forEach(path => {
+                createSubmapItem(path, submapTopdownList);
+            });
+        })
+        .catch(err => {
+            console.error('Error loading topdown tiles:', err);
+            // Fallback to hardcoded list if server fails
+            const topdownAssets = [
+                '/assets/Map/topdown/bo_gc_ng_i_t.png',
+                '/assets/Map/topdown/bo_gc_ng_i.png',
+                '/assets/Map/topdown/bo_gc_vng_nccs.png',
+                '/assets/Map/topdown/fcc11c2a.png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc.png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (1).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (2).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (3).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (4).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (5).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (6).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (7).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (8).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (9).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (10).png',
+                '/assets/Map/topdown/to_cho_ti_assets_nn_c_tc (11).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l.png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (1).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (2).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (3).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (4).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (5).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (6).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (7).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (8).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (9).png',
+                '/assets/Map/topdown/to_cho_ti_mt_s_assets_l (10).png',
+            ];
+            topdownAssets.forEach(path => {
+                createSubmapItem(path, submapTopdownList);
+            });
+        });
     
     // Load forest objects
     for (let i = 0; i < 16; i++) {
@@ -547,6 +596,101 @@ const isoToGrid = (isoX, isoY, tileSize) => {
 let submapMouseX = 0;
 let submapMouseY = 0;
 
+// Helper function to place object at mouse position (used for both click and drag-to-paint)
+const placeObjectAtMouse = (mouseX, mouseY) => {
+    if (!submapState.isCreated) return;
+    
+    const tileSize = submapState.tileSize * submapState.zoom;
+    
+    if (submapState.freeMode) {
+        // Free placement mode - place at exact pixel position
+        const worldX = (mouseX - submapState.panX) / submapState.zoom;
+        const worldY = (mouseY - submapState.panY) / submapState.zoom;
+        
+        if (submapState.selectedTileImg) {
+            // Add new object at free position
+            submapState.objects.push({
+                x: worldX,
+                y: worldY,
+                path: submapState.selectedTile,
+                img: submapState.selectedTileImg,
+                isFree: true,
+                rotation: 0
+            });
+            drawSubmap();
+        }
+    } else {
+        // Grid placement mode
+        let gridX, gridY;
+        
+        if (submapState.gridType === 'isometric') {
+            // Isometric grid - snap to diamond grid (45-degree rotated)
+            const mapWidth = submapState.width * tileSize;
+            const mapHeight = submapState.height * tileSize;
+            const centerX = mapWidth / 2;
+            const centerY = mapHeight / 2;
+            
+            const relativeX = (mouseX - submapState.panX - centerX) / (tileSize / 2);
+            const relativeY = (mouseY - submapState.panY - centerY) / (tileSize / 2);
+            
+            // Snap to nearest diamond grid intersection
+            gridX = Math.round(relativeX);
+            gridY = Math.round(relativeY);
+        } else {
+            // Square grid - snap to square tiles
+            gridX = Math.floor((mouseX - submapState.panX) / tileSize);
+            gridY = Math.floor((mouseY - submapState.panY) / tileSize);
+        }
+        
+        // Check if this cell was already painted (prevent duplicates during drag)
+        if (submapState.lastPaintedCell && 
+            submapState.lastPaintedCell.x === gridX && 
+            submapState.lastPaintedCell.y === gridY) {
+            return; // Skip if already painted this cell
+        }
+        
+        // Update last painted cell
+        submapState.lastPaintedCell = { x: gridX, y: gridY };
+        
+        // Check bounds based on grid type
+        let inBounds;
+        if (submapState.gridType === 'isometric') {
+            // Isometric grid allows negative coordinates (centered at 0,0)
+            inBounds = gridX >= -submapState.height && gridX <= submapState.width &&
+                       gridY >= -submapState.height && gridY <= submapState.width;
+        } else {
+            // Square grid: 0 to width, 0 to height
+            inBounds = gridX >= 0 && gridX < submapState.width && gridY >= 0 && gridY < submapState.height;
+        }
+        
+        if (inBounds) {
+            if (submapState.eraseMode) {
+                // Remove objects at this grid position
+                submapState.objects = submapState.objects.filter(obj => 
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                );
+            } else if (submapState.selectedTileImg) {
+                // Remove existing grid object at this position
+                submapState.objects = submapState.objects.filter(obj => 
+                    !(obj.x === gridX && obj.y === gridY && !obj.isFree)
+                );
+                
+                // Add new object
+                submapState.objects.push({
+                    x: gridX,
+                    y: gridY,
+                    path: submapState.selectedTile,
+                    img: submapState.selectedTileImg,
+                    isFree: false,
+                    gridType: submapState.gridType, // Store grid type for rendering
+                    rotation: 0
+                });
+            }
+            drawSubmap();
+        }
+    }
+};
+
 const onSubmapMouseDown = (e) => {
     if (!submapState.isCreated) return;
     
@@ -596,6 +740,15 @@ const onSubmapMouseDown = (e) => {
         submapState.lastPanY = e.clientY;
         submapCanvas.style.cursor = 'grabbing';
         e.preventDefault();
+        return;
+    }
+    
+    // Start painting if a tile is selected and not in move mode
+    if (submapState.selectedTileImg && !submapState.moveMode) {
+        submapState.isPainting = true;
+        submapState.lastPaintedCell = null;
+        // Place first object immediately
+        placeObjectAtMouse(mouseX, mouseY);
     }
 };
 
@@ -656,6 +809,12 @@ const onSubmapMouseMove = (e) => {
         submapState.lastPanX = e.clientX;
         submapState.lastPanY = e.clientY;
         drawSubmap();
+        return;
+    }
+    
+    // Handle painting (drag to paint)
+    if (submapState.isPainting) {
+        placeObjectAtMouse(submapMouseX, submapMouseY);
         return;
     }
     
@@ -727,6 +886,14 @@ const onSubmapMouseMove = (e) => {
 
 const onSubmapMouseUp = (e) => {
     console.log('=== onSubmapMouseUp ===');
+    
+    // Stop painting
+    if (submapState.isPainting) {
+        submapState.isPainting = false;
+        submapState.lastPaintedCell = null;
+        console.log('Stopped painting');
+        return;
+    }
     
     // Stop dragging object
     if (submapState.isDraggingObject) {

@@ -403,6 +403,31 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: err.message }));
     }
   }
+  // Endpoint để lấy tất cả ảnh từ thư mục topdown
+  else if (req.method === 'GET' && req.url === '/get-topdown-tiles') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Map/topdown');
+      
+      if (!fs.existsSync(dirPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ tiles: [] }));
+        return;
+      }
+      
+      const files = fs.readdirSync(dirPath);
+      const tiles = files
+        .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+        .map(file => `/assets/Map/topdown/${file}`);
+      
+      console.log(`✅ Found ${tiles.length} tiles in topdown folder`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tiles }));
+    } catch (err) {
+      console.error("❌ Lỗi get topdown tiles:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
   // Endpoint để lưu worldmap (map tổng)
   else if (req.method === 'POST' && req.url === '/save-worldmap') {
     let body = '';
@@ -424,6 +449,36 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+  }
+  // Endpoint để lấy worldmap mới nhất
+  else if (req.method === 'GET' && req.url === '/get-latest-worldmap') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Map');
+      const files = fs.readdirSync(dirPath);
+      const worldmapFiles = files
+        .filter(file => file.startsWith('worldmap_') && file.endsWith('.json'))
+        .sort()
+        .reverse(); // Lấy file mới nhất
+      
+      if (worldmapFiles.length === 0) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No worldmap found' }));
+        return;
+      }
+      
+      const latestFile = worldmapFiles[0];
+      const filePath = path.join(dirPath, latestFile);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const worldmapData = JSON.parse(content);
+      
+      console.log(`✅ Loaded worldmap: ${latestFile}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ worldmap: worldmapData, fileName: latestFile }));
+    } catch (err) {
+      console.error("❌ Lỗi get worldmap:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
   }
   else {
     res.writeHead(404);

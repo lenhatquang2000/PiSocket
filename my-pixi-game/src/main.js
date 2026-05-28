@@ -53,8 +53,29 @@ import { io } from "socket.io-client";
     const loadingText = document.getElementById('loading-text');
     const uiOverlay = document.getElementById('ui-overlay');
 
-    // 0. Tải cấu hình map đầu tiên để biết cần tải những gì tiếp theo
-    const mapConfig = await Assets.load('/assets/Map/map_config.json');
+    // 0. Tải worldmap và submaps thay vì map_config.json cũ
+    let worldmapData = null;
+    let submapsData = [];
+    
+    try {
+        // Load worldmap từ server
+        const worldmapResponse = await fetch(`${SOCKET_URL}/get-latest-worldmap`);
+        const worldmapResult = await worldmapResponse.json();
+        worldmapData = worldmapResult.worldmap;
+        console.log('✅ Loaded worldmap:', worldmapResult.fileName);
+        
+        // Load tất cả submaps
+        const submapsResponse = await fetch(`${SOCKET_URL}/get-submaps`);
+        const submapsResult = await submapsResponse.json();
+        submapsData = submapsResult.submaps || [];
+        console.log(`✅ Loaded ${submapsData.length} submaps`);
+    } catch (err) {
+        console.error('❌ Lỗi load worldmap, fallback to map_config.json:', err);
+        // Fallback to old map_config if worldmap not found
+        worldmapData = null;
+    }
+    
+    const mapConfig = worldmapData ? null : await Assets.load('/assets/Map/map_config.json');
 
     // Danh sách các file cần tải
     const assetsToLoad = [];
@@ -66,8 +87,21 @@ import { io } from "socket.io-client";
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${seedingBaseDir}${dir}/frame_00${i}.png`);
     });
     
-    // Tải texture của tất cả các vùng map từ config
-    if (mapConfig.zones) {
+    // Tải texture từ worldmap hoặc fallback to old config
+    if (worldmapData && submapsData.length > 0) {
+        // Load textures từ submaps
+        submapsData.forEach(submap => {
+            if (submap.objects) {
+                submap.objects.forEach(obj => {
+                    if (!assetsToLoad.includes(obj.path)) {
+                        assetsToLoad.push(obj.path);
+                    }
+                });
+            }
+        });
+        console.log(`📦 Loading assets from ${submapsData.length} submaps`);
+    } else if (mapConfig && mapConfig.zones) {
+        // Fallback: Tải texture của tất cả các vùng map từ config cũ
         mapConfig.zones.forEach(zone => {
             assetsToLoad.push(zone.texture);
         });
@@ -211,10 +245,128 @@ import { io } from "socket.io-client";
     const debugGraphics = new Container();
     world.addChild(debugGraphics);
 
-    // Rải các vùng đất --- (giữ nguyên logic cũ)
-    if (mapConfig.zones) {
+    // === RENDER WORLDMAP (NEW SYSTEM) ===
+    if (worldmapData && submapsData.length > 0) {
+        console.log('🗺️ Rendering worldmap with submaps...');
+        
+        // Render từng submap đã được đặt trong worldmap
+        worldmapData.placedSubmaps.forEach(placedSubmap => {
+            const submap = submapsData.find(s => s.name === placedSubmap.submapName);
+            if (!submap) {
+                console.warn(`⚠️ Submap "${placedSubmap.submapName}" not found`);
+                return;
+            }
+            
+            console.log(`📍 Placing submap "${submap.name}" at (${placedSubmap.x}, ${placedSubmap.y})`);
+            
+            // Render objects trong submap
+            if (submap.objects && submap.objects.length > 0) {
+                submap.objects.forEach(obj => {
+                    const objTexture = Assets.get(obj.path);
+                    if (!objTexture) {
+                        console.warn(`⚠️ Texture not found: ${obj.path}`);
+                        return;
+                    }
+                    
+                    const sprite = new AnimatedSprite([objTexture]);
+                    
+                    // Tính toán vị trí trong world space
+                    // obj.x, obj.y là vị trí trong submap (grid coordinates hoặc pixel coordinates)
+                    // placedSubmap.x, placedSubmap.y là vị trí submap trong worldmap
+                    let worldX, worldY;
+                    
+                    if (obj.isFree) {
+                        // Free placement - obj.x, obj.y là pixel coordinates
+                        worldX = placedSubmap.x + obj.x;
+                        worldY = placedSubmap.y + obj.y;
+                    } else {
+                        // Grid placement - obj.x, obj.y là grid coordinates
+                        worldX = placedSubmap.x + (obj.x * submap.tileSize);
+                        worldY = placedSubmap.y + (obj.y * submap.tileSize);
+                    }
+                    
+                    sprite.x = worldX;
+                    sprite.y = worldY;
+                    sprite.anchor.set(0.5, 0.5);
+                    
+                    // Use original image size (from submap editor)
+                    const scale = 1.0; // Objects already have correct size from editor
+                    sprite.scale.set(scale);
+                    
+                    // Apply rotation if exists
+                    if (obj.rotation) {
+                        sprite.rotation = obj.rotation * Math.PI / 180;
+                    }
+                    
+                    sprite.zIndex = 1; // Objects above ground
+                    world.addChild(sprite);
+                    objectSprites.push(sprite);
+                    
+                    // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
+                    const hitData = collisionData[obj.path];
+                    if (hitData) {
+                        let hitPoints, zIndexUpPoints, zIndexDownPoints;
+                        if (Array.isArray(hitData)) {
+                            hitPoints = hitData;
+                            zIndexUpPoints = [];
+                            zIndexDownPoints = [];
+                        } else {
+                            hitPoints = hitData.normal || [];
+                            zIndexUpPoints = hitData.z_index_up || [];
+                            zIndexDownPoints = hitData.z_index_down || [];
+                        }
+
+                        collidableObjects.push({
+                            x: sprite.x,
+                            y: sprite.y,
+                            scale: scale,
+                            anchor: sprite.anchor,
+                            points: hitPoints,
+                            zIndexUpPoints: zIndexUpPoints,
+                            zIndexDownPoints: zIndexDownPoints,
+                            width: objTexture.width,
+                            height: objTexture.height,
+                            sprite: sprite
+                        });
+
+                        // Vẽ Debug colliders
+                        const g = new Graphics();
+                        g.beginFill(0xff0000, 0.5);
+                        hitPoints.forEach(p => {
+                            const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                            const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                            g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                        });
+                        if (zIndexUpPoints.length > 0) {
+                            g.beginFill(0x00ff00, 0.5);
+                            zIndexUpPoints.forEach(p => {
+                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                            });
+                        }
+                        if (zIndexDownPoints.length > 0) {
+                            g.beginFill(0xffff00, 0.5);
+                            zIndexDownPoints.forEach(p => {
+                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
+                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
+                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
+                            });
+                        }
+                        g.visible = false;
+                        debugGraphics.addChild(g);
+                        sprite.debugBounds = g;
+                    }
+                });
+            }
+        });
+        
+        console.log(`✅ Rendered ${worldmapData.placedSubmaps.length} submaps`);
+    }
+    // === FALLBACK: RENDER OLD MAP SYSTEM ===
+    else if (mapConfig && mapConfig.zones) {
+        console.log('🗺️ Rendering old map system (zones)...');
         mapConfig.zones.forEach(zone => {
-            // ... (code cũ tạo zoneSprite)
             const texture = Assets.get(zone.texture);
             const zoneSprite = new TilingSprite({
                 texture,
@@ -223,7 +375,7 @@ import { io } from "socket.io-client";
             });
             zoneSprite.x = zone.x;
             zoneSprite.y = zone.y;
-            zoneSprite.zIndex = 0; // Nền đất luôn ở dưới cùng
+            zoneSprite.zIndex = 0;
             world.addChild(zoneSprite);
 
             // Rải vật thể đặc trưng vùng
@@ -256,10 +408,8 @@ import { io } from "socket.io-client";
                     world.addChild(sprite);
                     objectSprites.push(sprite);
 
-                    // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
                     const hitData = collisionData[path];
                     if (hitData) {
-                        // Backward compatibility: nếu data là array (format cũ)
                         let hitPoints, zIndexUpPoints, zIndexDownPoints;
                         if (Array.isArray(hitData)) {
                             hitPoints = hitData;
@@ -281,10 +431,9 @@ import { io } from "socket.io-client";
                             zIndexDownPoints: zIndexDownPoints,
                             width: objTexture.width,
                             height: objTexture.height,
-                            sprite: sprite // Lưu reference để điều chỉnh z-index
+                            sprite: sprite
                         });
 
-                        // Vẽ Debug nếu cần
                         const g = new Graphics();
                         g.beginFill(0xff0000, 0.5);
                         hitPoints.forEach(p => {
@@ -292,7 +441,6 @@ import { io } from "socket.io-client";
                             const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
                             g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
                         });
-                        // Vẽ debug cho z-index up (xanh) - chỉ nếu có data mới
                         if (zIndexUpPoints.length > 0) {
                             g.beginFill(0x00ff00, 0.5);
                             zIndexUpPoints.forEach(p => {
@@ -301,7 +449,6 @@ import { io } from "socket.io-client";
                                 g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
                             });
                         }
-                        // Vẽ debug cho z-index down (vàng) - chỉ nếu có data mới
                         if (zIndexDownPoints.length > 0) {
                             g.beginFill(0xffff00, 0.5);
                             zIndexDownPoints.forEach(p => {
@@ -421,8 +568,8 @@ import { io } from "socket.io-client";
         return false;
     };
 
-    // Rải các object cố định từ config vào thế giới
-    if (mapConfig.objects) {
+    // Rải các object cố định từ config vào thế giới (chỉ khi dùng old system)
+    if (mapConfig && mapConfig.objects) {
         mapConfig.objects.forEach(obj => {
             const path = `/assets/Object/desert/desert_obj_${obj.id}.png`;
             const objTexture = Assets.get(path);
@@ -878,11 +1025,23 @@ import { io } from "socket.io-client";
         const mpBar = document.getElementById('mp-bar');
         const hpText = document.getElementById('hp-text');
         const mpText = document.getElementById('mp-text');
+        const positionText = document.getElementById('position-text');
         
         if (hpBar) hpBar.style.width = `${Math.max(0, Math.min(100, hpPercent))}%`;
         if (mpBar) mpBar.style.width = `${Math.max(0, Math.min(100, mpPercent))}%`;
         if (hpText) hpText.textContent = `${Math.max(0, playerStats.hp)}/${playerStats.maxHp}`;
         if (mpText) mpText.textContent = `${Math.max(0, playerStats.mp)}/${playerStats.maxMp}`;
+        
+        // Update position display (using characterContainer)
+        if (positionText) {
+            if (typeof characterContainer !== 'undefined' && characterContainer && characterContainer.visible) {
+                const x = Math.round(characterContainer.x);
+                const y = Math.round(characterContainer.y);
+                positionText.textContent = `X: ${x}, Y: ${y}`;
+            } else {
+                positionText.textContent = `X: -, Y: -`;
+            }
+        }
     };
 
     // --- HÀM CẬP NHẬT UI SKILLS COOLDOWN ---
@@ -1114,8 +1273,16 @@ import { io } from "socket.io-client";
     nameTag.y = -60; // Điều chỉnh vị trí tên trên đầu
     characterContainer.addChild(nameTag);
 
-    characterContainer.x = 500;
-    characterContainer.y = 500;
+    // Set initial spawn position from worldmap or default
+    if (worldmapData && worldmapData.spawnPoint) {
+        characterContainer.x = worldmapData.spawnPoint.x;
+        characterContainer.y = worldmapData.spawnPoint.y;
+        console.log(`✅ Player spawned at worldmap spawn point: (${worldmapData.spawnPoint.x}, ${worldmapData.spawnPoint.y})`);
+    } else {
+        characterContainer.x = 500;
+        characterContainer.y = 500;
+        console.log('⚠️ No spawn point found, using default (500, 500)');
+    }
     characterContainer.scale.set(0.7);
 
     // Vẽ Debug collider cho nhân vật
@@ -1205,9 +1372,11 @@ import { io } from "socket.io-client";
             // Account exists or created successfully, proceed to game
             myGameId = username;
             if (checkData.playerState) {
-                characterContainer.x = Number(checkData.playerState.x) || 500;
-                characterContainer.y = Number(checkData.playerState.y) || 500;
+                characterContainer.x = Number(checkData.playerState.x) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.x : 500);
+                characterContainer.y = Number(checkData.playerState.y) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.y : 500);
                 currentDir = checkData.playerState.dir || 'south';
+                console.log(`✅ Loaded saved position: (${characterContainer.x}, ${characterContainer.y})`);
+                
                 character.textures = idleAnimations[currentDir];
                 character.play();
                 
@@ -1217,6 +1386,11 @@ import { io } from "socket.io-client";
                 playerStats.mp = Number(checkData.playerState.mp) || 50;
                 playerStats.maxMp = Number(checkData.playerState.max_mp) || 50;
                 playerStats.moveSpeed = Number(checkData.playerState.move_speed) || 4;
+            } else if (worldmapData && worldmapData.spawnPoint) {
+                // New player - use spawn point
+                characterContainer.x = worldmapData.spawnPoint.x;
+                characterContainer.y = worldmapData.spawnPoint.y;
+                console.log(`✅ New player spawned at: (${characterContainer.x}, ${characterContainer.y})`);
             }
             nameTag.text = myGameId;
             updateStatsUI(); // Cập nhật UI HP/MP

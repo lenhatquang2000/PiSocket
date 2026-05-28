@@ -1,0 +1,13 @@
+{
+  "placedSubmaps": [
+    {
+      "submapName": "Map1",
+      "x": 1833,
+      "y": -296
+    }
+  ],
+  "spawnPoint": {
+    "x": 2181,
+    "y": 14
+  }
+}

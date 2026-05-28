@@ -96,6 +96,8 @@
             
             <h3 style="margin-top: 20px;">🎨 Tiles & Objects</h3>
             <div id="submap-tiles-list"></div>
+            <h3>Top-Down Assets</h3>
+            <div id="submap-topdown-list"></div>
             <h3>Desert Objects</h3>
             <div id="submap-desert-list"></div>
             <h3>Forest Objects</h3>
@@ -197,6 +199,14 @@
                 <input type="range" id="worldmapZoom" min="0.1" max="2" step="0.1" value="0.5" style="width: 100%;">
                 <span id="worldmapZoomValue">50%</span>
             </div>
+            <div style="margin-bottom: 10px; padding: 10px; background: rgba(52, 152, 219, 0.2); border-radius: 4px;">
+                <label style="font-weight: bold; color: #3498db;">📍 Nhảy đến tọa độ:</label>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <input type="number" id="worldmapJumpX" placeholder="X" style="width: 50%; padding: 5px;">
+                    <input type="number" id="worldmapJumpY" placeholder="Y" style="width: 50%; padding: 5px;">
+                </div>
+                <button id="worldmapJumpBtn" style="width: 100%; padding: 5px; margin-top: 5px; background: #3498db; font-size: 12px;">Nhảy đến</button>
+            </div>
             <div style="margin-bottom: 10px;">
                 <button id="worldmapPanBtn" class="active" style="width: 100%; padding: 8px; background: #3498db;">🖐️ Pan Mode</button>
             </div>
@@ -204,13 +214,25 @@
                 <button id="worldmapPlaceBtn" style="width: 100%; padding: 8px; background: #9b59b6;">📍 Place Sub-Map</button>
             </div>
             <div style="margin-bottom: 10px;">
+                <button id="worldmapSpawnBtn" style="width: 100%; padding: 8px; background: #f39c12;">⭐ Set Spawn Point</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="worldmapClearBtn" style="width: 100%; padding: 8px; background: #e74c3c;">🗑️ Clear All</button>
+            </div>
+            <div style="margin-bottom: 10px;">
                 <button id="saveWorldmapBtn" style="width: 100%; padding: 8px; background: #27ae60;">💾 Lưu World Map</button>
+            </div>
+            <div id="worldmapInfo" style="font-size: 11px; color: #ecf0f1; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                <p style="margin: 0; font-weight: bold; color: #f39c12;">📦 Map Con đã đặt:</p>
+                <div id="worldmapPlacedList"></div>
             </div>
             <div style="font-size: 12px; color: #ecf0f1;">
                 <p><strong>Hướng dẫn:</strong></p>
                 <p>• Chọn map con từ sidebar</p>
                 <p>• Chọn Place Sub-Map mode</p>
                 <p>• Click để đặt vào world</p>
+                <p>• Chọn Set Spawn Point</p>
+                <p>• Click để đặt vị trí spawn</p>
                 <p>• Pan để di chuyển</p>
                 <p>• Scroll để zoom</p>
             </div>
