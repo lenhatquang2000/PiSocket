@@ -63,6 +63,48 @@ export async function initDatabase() {
       UNIQUE(username, skill_id)
     )
   `);
+
+  // Bảng farmed_tiles - Lưu trữ các ô đất đã đào
+  db.run(`
+    CREATE TABLE IF NOT EXISTS farmed_tiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(x, y)
+    )
+  `);
+
+  // Bảng crop_types - Lưu trữ các loại cây trồng
+  db.run(`
+    CREATE TABLE IF NOT EXISTS crop_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      growth_time INTEGER DEFAULT 60,
+      sprite_path TEXT NOT NULL
+    )
+  `);
+
+  // Bảng planted_crops - Lưu trữ cây đã trồng
+  db.run(`
+    CREATE TABLE IF NOT EXISTS planted_crops (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      crop_type_id INTEGER NOT NULL,
+      planted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      harvested BOOLEAN DEFAULT 0,
+      FOREIGN KEY (crop_type_id) REFERENCES crop_types(id),
+      UNIQUE(x, y)
+    )
+  `);
+
+  // Thêm dữ liệu mẫu cho crop_types (chỉ thêm nếu chưa có)
+  db.run(`
+    INSERT OR IGNORE INTO crop_types (name, display_name, growth_time, sprite_path)
+    VALUES ('rice', 'Lúa', 60, '/assets/Crops/rice.png')
+  `);
   
   saveDatabase();
   
@@ -148,6 +190,7 @@ export function initializePlayerSkills(username) {
   try {
     stmt.run([username, 1, 'Fireball', 'fireball', '/assets/Skills/Explosion/frame_', 16, 0.3, 5.0, 10]);
     stmt.run([username, 2, 'Farming', 'farming', '/assets/A_cute_chibi_anime_girl/animations/dig/', 9, 0.15, 2.0, 5]);
+    stmt.run([username, 3, 'Seeding', 'seeding', '/assets/A_cute_chibi_anime_girl/animations/seeding/', 9, 0.15, 2.0, 3]);
     stmt.free();
     saveDatabase();
     return true;
@@ -205,4 +248,147 @@ export function getSkillCooldownRemaining(username, skillId) {
   }
   stmt.free();
   return result;
+}
+
+// --- FARMED TILES MANAGEMENT ---
+export function saveFarmedTile(x, y) {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO farmed_tiles (x, y)
+    VALUES (?, ?)
+  `);
+  try {
+    stmt.run([x, y]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
+}
+
+export function getAllFarmedTiles() {
+  const stmt = db.prepare(`
+    SELECT x, y, created_at
+    FROM farmed_tiles
+    ORDER BY created_at ASC
+  `);
+  const results = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return results;
+}
+
+export function deleteFarmedTile(x, y) {
+  const stmt = db.prepare(`
+    DELETE FROM farmed_tiles
+    WHERE x = ? AND y = ?
+  `);
+  try {
+    stmt.run([x, y]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
+}
+
+export function clearAllFarmedTiles() {
+  const stmt = db.prepare(`DELETE FROM farmed_tiles`);
+  try {
+    stmt.run([]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
+}
+
+// --- CROP TYPES MANAGEMENT ---
+export function getAllCropTypes() {
+  const stmt = db.prepare(`
+    SELECT id, name, display_name, growth_time, sprite_path
+    FROM crop_types
+    ORDER BY id ASC
+  `);
+  const results = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return results;
+}
+
+// --- PLANTED CROPS MANAGEMENT ---
+export function plantCrop(x, y, cropTypeId) {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO planted_crops (x, y, crop_type_id)
+    VALUES (?, ?, ?)
+  `);
+  try {
+    stmt.run([x, y, cropTypeId]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
+}
+
+export function getAllPlantedCrops() {
+  const stmt = db.prepare(`
+    SELECT 
+      pc.id, pc.x, pc.y, pc.planted_at, pc.harvested,
+      ct.name as crop_name, ct.display_name, ct.growth_time, ct.sprite_path
+    FROM planted_crops pc
+    JOIN crop_types ct ON pc.crop_type_id = ct.id
+    WHERE pc.harvested = 0
+    ORDER BY pc.planted_at ASC
+  `);
+  const results = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return results;
+}
+
+export function harvestCrop(x, y) {
+  const stmt = db.prepare(`
+    UPDATE planted_crops
+    SET harvested = 1
+    WHERE x = ? AND y = ? AND harvested = 0
+  `);
+  try {
+    stmt.run([x, y]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
+}
+
+export function deletePlantedCrop(x, y) {
+  const stmt = db.prepare(`
+    DELETE FROM planted_crops
+    WHERE x = ? AND y = ?
+  `);
+  try {
+    stmt.run([x, y]);
+    stmt.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmt.free();
+    return false;
+  }
 }

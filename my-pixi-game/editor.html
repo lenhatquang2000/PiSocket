@@ -8,48 +8,212 @@
         body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: #2c3e50; color: white; }
         #sidebar { width: 300px; background: #34495e; padding: 20px; overflow-y: auto; border-right: 2px solid #2c3e50; }
         #canvas-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden; }
-        canvas { background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uPBAp85jW9jYGBgEEYS8PBaH0JCtP8XP7xeH1ICjZaHcMMB46QIEUqECuQAAAAASUVORK5CYII='); border: 2px solid #fff; image-rendering: pixelated; }
+        canvas { background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uPBAp85jW9jYGBgEEYS8PBaH0JCtP8XP7xeH1ICjZaHcMMB46QIEUqECuQAAAAASUVORK5CYII='); border: 2px solid #fff; image-rendering: pixelated; display: none; }
+        canvas.active { display: block; }
+        #mapeditor-canvas { background: #1a1a1a; border: 2px solid #fff; }
         .obj-item { padding: 10px; margin-bottom: 5px; background: #2c3e50; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
         .obj-item:hover { background: #1abc9c; }
         .obj-item img { width: 40px; height: 40px; margin-right: 10px; object-fit: contain; }
-        #controls { position: absolute; bottom: 20px; left: 320px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 400px; }
+        #controls { position: absolute; bottom: 20px; left: 320px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 400px; transition: all 0.3s ease; }
+        #controls.collapsed { height: 50px; overflow: hidden; }
+        #controls.collapsed .controls-content { display: none; }
+        #submap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; }
+        #submap-controls.active { display: block; }
+        #worldmap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; }
+        #worldmap-controls.active { display: block; }
+        #submap-canvas { display: none; cursor: crosshair; background: #1a1a1a; border: 2px solid #fff; }
+        #submap-canvas.active { display: block; }
+        #worldmap-canvas { display: none; cursor: grab; background: #0a0a0a; border: 2px solid #fff; }
+        #worldmap-canvas.active { display: block; }
+        .controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .controls-title { font-weight: bold; font-size: 14px; }
+        #toggleControlsBtn { padding: 5px 10px; cursor: pointer; background: #95a5a6; border: none; color: white; border-radius: 4px; font-size: 12px; }
+        #toggleControlsBtn:hover { background: #7f8c8d; }
         .tool-row { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
         button.active { background: #e67e22; }
         button { padding: 8px 15px; cursor: pointer; background: #1abc9c; border: none; color: white; border-radius: 4px; font-weight: bold; }
         button:hover { background: #16a085; }
         textarea { width: 100%; height: 100px; margin-top: 10px; background: #ecf0f1; border-radius: 4px; font-family: monospace; font-size: 10px; color: #333; }
+        #tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; background: #2c3e50; border: none; color: white; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .tab-btn.active { background: #1abc9c; }
+        .tab-btn:hover { background: #34495e; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div id="sidebar">
-        <h3>Player</h3>
-        <div id="player-list"></div>
-        <h3>Desert Objects</h3>
-        <div id="desert-list"></div>
-        <h3>Forest Objects</h3>
-        <div id="forest-list"></div>
+        <div id="tabs">
+            <button class="tab-btn active" data-tab="objects">Collision</button>
+            <button class="tab-btn" data-tab="map">Map Objects</button>
+            <button class="tab-btn" data-tab="submap">Sub-Map Editor</button>
+            <button class="tab-btn" data-tab="worldmap">World Map</button>
+        </div>
+        
+        <div id="objects-tab" class="tab-content active">
+            <h3>Player</h3>
+            <div id="player-list"></div>
+            <h3>Desert Objects</h3>
+            <div id="desert-list"></div>
+            <h3>Forest Objects</h3>
+            <div id="forest-list"></div>
+        </div>
+        
+        <div id="map-tab" class="tab-content">
+            <h3>Map Objects</h3>
+            <div id="map-list"></div>
+        </div>
+        
+        <div id="submap-tab" class="tab-content">
+            <h3>🗺️ Tạo Map Con</h3>
+            <div style="margin-bottom: 15px;">
+                <label>Tên Map:</label>
+                <input type="text" id="submapName" placeholder="forest_area" style="width: 100%; padding: 5px; margin-top: 5px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Chiều rộng (tiles):</label>
+                <input type="number" id="submapWidth" value="20" min="5" max="100" style="width: 100%; padding: 5px; margin-top: 5px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Chiều cao (tiles):</label>
+                <input type="number" id="submapHeight" value="20" min="5" max="100" style="width: 100%; padding: 5px; margin-top: 5px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Kích thước tile (px):</label>
+                <input type="number" id="submapTileSize" value="32" min="16" max="64" style="width: 100%; padding: 5px; margin-top: 5px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Loại Grid:</label>
+                <select id="submapGridType" style="width: 100%; padding: 5px; margin-top: 5px;">
+                    <option value="square">Vuông (Dọc/Ngang)</option>
+                    <option value="isometric">Chéo (Isometric)</option>
+                </select>
+            </div>
+            <button id="createSubmapBtn" style="width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 10px;">Tạo Map Con Mới</button>
+            <button id="resetSubmapBtn" style="width: 100%; padding: 10px; background: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Reset (Tạo Map Khác)</button>
+            
+            <h3 style="margin-top: 20px;">🎨 Tiles & Objects</h3>
+            <div id="submap-tiles-list"></div>
+            <h3>Desert Objects</h3>
+            <div id="submap-desert-list"></div>
+            <h3>Forest Objects</h3>
+            <div id="submap-forest-list"></div>
+        </div>
+        
+        <div id="worldmap-tab" class="tab-content">
+            <h3>🌍 World Map Composer</h3>
+            <p style="font-size: 12px; color: #bdc3c7;">Không gian vô hạn - Kéo thả map con vào</p>
+            <h3 style="margin-top: 20px;">📦 Map Con Đã Tạo</h3>
+            <div id="worldmap-submaps-list"></div>
+        </div>
     </div>
     <div id="canvas-container">
         <canvas id="editorCanvas"></canvas>
+        <canvas id="submap-canvas"></canvas>
+        <canvas id="worldmap-canvas"></canvas>
+        
         <div id="controls">
-            <div class="tool-row">
-                <button id="brushBtn" class="active">Cọ vẽ</button>
-                <button id="eraserBtn">Cục tẩy</button>
-                <span>Size:</span>
-                <input type="range" id="brushSize" min="1" max="5" value="1">
+            <div class="controls-header">
+                <span class="controls-title">⚙️ Công cụ chỉnh sửa</span>
+                <button id="toggleControlsBtn">Thu gọn ▲</button>
             </div>
-            <div class="tool-row">
-                <span>Loại Collider:</span>
-                <button id="colliderNormalBtn" class="active" style="background:#e74c3c">Đỏ (Va chạm)</button>
-                <button id="colliderGreenBtn" style="background:#27ae60">Xanh (Z-Index Up)</button>
-                <button id="colliderYellowBtn" style="background:#f39c12">Vàng (Z-Index Down)</button>
+            <div class="controls-content">
+                <div class="tool-row">
+                    <button id="brushBtn" class="active">Cọ vẽ</button>
+                    <button id="eraserBtn">Cục tẩy</button>
+                    <span>Size:</span>
+                    <input type="range" id="brushSize" min="1" max="5" value="1">
+                </div>
+                <div class="tool-row">
+                    <span>Loại Collider:</span>
+                    <button id="colliderNormalBtn" class="active" style="background:#e74c3c">Đỏ (Va chạm)</button>
+                    <button id="colliderGreenBtn" style="background:#27ae60">Xanh (Z-Index Up)</button>
+                    <button id="colliderYellowBtn" style="background:#f39c12">Vàng (Z-Index Down)</button>
+                </div>
+                <div class="tool-row">
+                    <span>Scale:</span>
+                    <input type="range" id="objectScale" min="0.5" max="3" step="0.1" value="1">
+                    <span id="scaleValue">1.0x</span>
+                </div>
+                <div class="tool-row">
+                    <button id="clearBtn" style="background:#e74c3c">Xóa hết vùng vẽ</button>
+                    <button id="saveBtn" style="background:#3498db">LƯU VÀO SERVER</button>
+                </div>
+                <textarea id="outputJson" readonly placeholder="Kết quả JSON sẽ hiện ở đây..."></textarea>
             </div>
-            <div class="tool-row">
-                <button id="clearBtn" style="background:#e74c3c">Xóa hết vùng vẽ</button>
-                <button id="saveBtn" style="background:#3498db">LƯU VÀO SERVER</button>
+        </div>
+        
+        <div id="submap-controls">
+            <h3 style="margin-top: 0;">🗺️ Sub-Map Editor</h3>
+            <div style="margin-bottom: 10px;">
+                <label>Zoom:</label>
+                <input type="range" id="submapZoom" min="0.5" max="3" step="0.1" value="1" style="width: 100%;">
+                <span id="submapZoomValue">100%</span>
             </div>
-            <textarea id="outputJson" readonly placeholder="Kết quả JSON sẽ hiện ở đây..."></textarea>
+            <div style="margin-bottom: 10px;">
+                <button id="submapEraseBtn" style="width: 100%; padding: 8px; background: #e74c3c;">🗑️ Xóa Object</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="submapMoveBtn" style="width: 100%; padding: 8px; background: #3498db;">✋ Di Chuyển Object</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="submapFreeBtn" style="width: 100%; padding: 8px; background: #9b59b6;">📍 Đặt Tự Do (Chéo)</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>Góc xoay Grid (độ):</label>
+                <input type="number" id="submapRotationInput" value="0" min="0" max="360" step="5" style="width: 100%; padding: 5px; margin-top: 5px;">
+            </div>
+            <div id="objectRotationPanel" style="margin-bottom: 10px; display: none; padding: 10px; background: rgba(52, 152, 219, 0.2); border-radius: 4px;">
+                <label style="color: #3498db; font-weight: bold;">🔧 Xoay Object đã chọn:</label>
+                <input type="number" id="objectRotationInput" value="0" min="0" max="360" step="5" style="width: 100%; padding: 5px; margin-top: 5px;">
+                <div style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="pixelMoveCheckbox" style="margin-right: 5px;">
+                        <span>Di chuyển theo Pixel (không snap grid)</span>
+                    </label>
+                </div>
+                <button id="deselectObjectBtn" style="width: 100%; padding: 5px; margin-top: 5px; background: #95a5a6; font-size: 12px;">Bỏ chọn</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="saveSubmapBtn" style="width: 100%; padding: 8px; background: #27ae60;">💾 Lưu Map Con</button>
+            </div>
+            <div style="font-size: 12px; color: #ecf0f1;">
+                <p><strong>Hướng dẫn:</strong></p>
+                <p>• Tạo map con với kích thước</p>
+                <p>• Chọn tile/object từ sidebar</p>
+                <p>• Click để đặt vào grid</p>
+                <p>• "Đặt Tự Do" để đặt chéo</p>
+                <p>• Space + Drag để pan</p>
+                <p>• Scroll để zoom</p>
+            </div>
+        </div>
+        
+        <div id="worldmap-controls">
+            <h3 style="margin-top: 0;">🌍 World Map</h3>
+            <div style="margin-bottom: 10px;">
+                <label>Zoom:</label>
+                <input type="range" id="worldmapZoom" min="0.1" max="2" step="0.1" value="0.5" style="width: 100%;">
+                <span id="worldmapZoomValue">50%</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="worldmapPanBtn" class="active" style="width: 100%; padding: 8px; background: #3498db;">🖐️ Pan Mode</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="worldmapPlaceBtn" style="width: 100%; padding: 8px; background: #9b59b6;">📍 Place Sub-Map</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="saveWorldmapBtn" style="width: 100%; padding: 8px; background: #27ae60;">💾 Lưu World Map</button>
+            </div>
+            <div style="font-size: 12px; color: #ecf0f1;">
+                <p><strong>Hướng dẫn:</strong></p>
+                <p>• Chọn map con từ sidebar</p>
+                <p>• Chọn Place Sub-Map mode</p>
+                <p>• Click để đặt vào world</p>
+                <p>• Pan để di chuyển</p>
+                <p>• Scroll để zoom</p>
+            </div>
         </div>
     </div>
     <script type="module" src="/src/editor.js"></script>

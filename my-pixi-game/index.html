@@ -44,6 +44,19 @@
       </div>
     </div>
 
+    <!-- UI Chọn Cây Trồng -->
+    <div id="crop-selection-panel" style="position: fixed; top: 20px; right: 20px; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 8px; border: 2px solid #2ecc71; z-index: 150; font-family: Arial, sans-serif; min-width: 180px; display: none;">
+      <div style="color: #2ecc71; font-weight: bold; margin-bottom: 10px; font-size: 16px; text-align: center;">
+        🌾 Chọn Cây Trồng
+      </div>
+      <div id="crop-list" style="display: flex; flex-direction: column; gap: 8px;">
+        <!-- Crop items will be added here dynamically -->
+      </div>
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); color: #aaa; font-size: 12px; text-align: center;">
+        Nhấn <span style="color: #2ecc71; font-weight: bold;">T</span> để trồng
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

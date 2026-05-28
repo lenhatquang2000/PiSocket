@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { initDatabase } from './Server/database.js';
-import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown } from './Server/playerManager.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop } from './Server/playerManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,7 +132,111 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
-  } 
+  }
+  // Save farmed tile
+  else if (req.method === 'POST' && req.url === '/save-farmed-tile') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { x, y } = JSON.parse(body);
+        const success = saveFarmedTileData(x, y);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi save farmed tile:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get all farmed tiles
+  else if (req.method === 'GET' && req.url === '/get-farmed-tiles') {
+    try {
+      const tiles = getFarmedTiles();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tiles }));
+    } catch (err) {
+      console.error("❌ Lỗi get farmed tiles:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Delete farmed tile
+  else if (req.method === 'POST' && req.url === '/delete-farmed-tile') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { x, y } = JSON.parse(body);
+        const success = removeFarmedTile(x, y);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi delete farmed tile:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get all crop types
+  else if (req.method === 'GET' && req.url === '/get-crop-types') {
+    try {
+      const cropTypes = getCropTypes();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ cropTypes }));
+    } catch (err) {
+      console.error("❌ Lỗi get crop types:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Plant a crop
+  else if (req.method === 'POST' && req.url === '/plant-crop') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { x, y, cropTypeId } = JSON.parse(body);
+        const success = plantCropData(x, y, cropTypeId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi plant crop:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get all planted crops
+  else if (req.method === 'GET' && req.url === '/get-planted-crops') {
+    try {
+      const crops = getPlantedCrops();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ crops }));
+    } catch (err) {
+      console.error("❌ Lỗi get planted crops:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Harvest a crop
+  else if (req.method === 'POST' && req.url === '/harvest-crop') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { x, y } = JSON.parse(body);
+        const success = harvestCropData(x, y);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        console.error("❌ Lỗi harvest crop:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
   // Endpoint để nhận dữ liệu va chạm từ Editor
   else if (req.method === 'POST' && req.url === '/save-collision') {
     let body = '';
@@ -192,6 +296,130 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ message: 'Saved successfully' }));
       } catch (err) {
         console.error("❌ Lỗi lưu file:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Endpoint để lưu map từ Map Editor
+  else if (req.method === 'POST' && req.url === '/save-map') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const mapData = JSON.parse(body);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `map_${timestamp}.json`;
+        const filePath = path.join(__dirname, 'public/assets/Map', fileName);
+        
+        fs.writeFileSync(filePath, JSON.stringify(mapData, null, 2));
+        console.log("✅ Đã lưu map vào:", filePath);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Map saved successfully', fileName }));
+      } catch (err) {
+        console.error("❌ Lỗi lưu map:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Endpoint để lưu submap (map con)
+  else if (req.method === 'POST' && req.url === '/save-submap') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const submapData = JSON.parse(body);
+        const fileName = `${submapData.name}.json`;
+        const dirPath = path.join(__dirname, 'public/assets/Map/MapCon');
+        
+        // Create MapCon directory if it doesn't exist
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+        
+        const filePath = path.join(dirPath, fileName);
+        fs.writeFileSync(filePath, JSON.stringify(submapData, null, 2));
+        console.log("✅ Đã lưu submap vào:", filePath);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Submap saved successfully', fileName }));
+      } catch (err) {
+        console.error("❌ Lỗi lưu submap:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Endpoint để lấy danh sách submaps
+  else if (req.method === 'GET' && req.url === '/get-submaps') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Map/MapCon');
+      
+      if (!fs.existsSync(dirPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ submaps: [] }));
+        return;
+      }
+      
+      const files = fs.readdirSync(dirPath);
+      const submaps = files
+        .filter(file => file.endsWith('.json'))
+        .map(file => {
+          const filePath = path.join(dirPath, file);
+          const content = fs.readFileSync(filePath, 'utf8');
+          return JSON.parse(content);
+        });
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ submaps }));
+    } catch (err) {
+      console.error("❌ Lỗi get submaps:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Endpoint để lấy tất cả ảnh từ thư mục Map2
+  else if (req.method === 'GET' && req.url === '/get-map2-tiles') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Map/Map2');
+      
+      if (!fs.existsSync(dirPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ tiles: [] }));
+        return;
+      }
+      
+      const files = fs.readdirSync(dirPath);
+      const tiles = files
+        .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+        .map(file => `/assets/Map/Map2/${file}`);
+      
+      console.log(`✅ Found ${tiles.length} tiles in Map2 folder`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tiles }));
+    } catch (err) {
+      console.error("❌ Lỗi get map2 tiles:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Endpoint để lưu worldmap (map tổng)
+  else if (req.method === 'POST' && req.url === '/save-worldmap') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const worldmapData = JSON.parse(body);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `worldmap_${timestamp}.json`;
+        const filePath = path.join(__dirname, 'public/assets/Map', fileName);
+        
+        fs.writeFileSync(filePath, JSON.stringify(worldmapData, null, 2));
+        console.log("✅ Đã lưu worldmap vào:", filePath);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Worldmap saved successfully', fileName }));
+      } catch (err) {
+        console.error("❌ Lỗi lưu worldmap:", err);
         res.writeHead(500);
         res.end(JSON.stringify({ error: err.message }));
       }
@@ -277,6 +505,21 @@ io.on("connection", (socket) => {
         x: digData.x, 
         y: digData.y,
         dir: digData.dir
+      });
+    }
+  });
+
+  // Event riêng cho trồng cây (seeding) — broadcast với vị trí, hướng và loại cây
+  socket.on("playerSeed", (seedData) => {
+    if (players[socket.id]) {
+      console.log(`Player ${players[socket.id].name} plants ${seedData.cropName} at (${seedData.x}, ${seedData.y}) facing ${seedData.dir}`);
+      socket.broadcast.emit("playerSeed", { 
+        id: socket.id, 
+        x: seedData.x, 
+        y: seedData.y,
+        dir: seedData.dir,
+        cropTypeId: seedData.cropTypeId,
+        cropName: seedData.cropName
       });
     }
   });

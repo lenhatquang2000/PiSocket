@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "983e769c-e197-4f2e-b957-d592dc1b9455",
+      "name": null,
+      "prompt": "t\u1ea1o cho t\u00f4i m\u1ed9t s\u1ed1 assets \u0111\u1ec3 l\u00e0m n\u1ec1n c\u1ecf\nn\u1ec1n \u0111\u00e1\n\u0111\u01b0\u1eddng \u0111i \u0111\u1ea5t\n\u0111\u01b0\u1eddng \u0111i  \u0111\u00e1\ng\u00f3c nh\u00ecn t\u1eeb tr\u00ean xu\u1ed1ng\n",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-28T06:54:17.063066"
+}

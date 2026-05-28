@@ -1,4 +1,4 @@
-import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining } from './database.js';
+import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop } from './database.js';
 
 // Check if account exists
 export function checkAccount(username) {
@@ -43,6 +43,23 @@ export function getSkillCooldown(username, skillId) {
   return getSkillCooldownRemaining(username, skillId);
 }
 
+// Farmed tiles management
+export function saveFarmedTileData(x, y) {
+  return saveFarmedTile(x, y);
+}
+
+export function getFarmedTiles() {
+  return getAllFarmedTiles();
+}
+
+export function removeFarmedTile(x, y) {
+  return deleteFarmedTile(x, y);
+}
+
+export function clearFarmedTiles() {
+  return clearAllFarmedTiles();
+}
+
 // Validate username
 export function validateUsername(username) {
   if (!username || username.trim().length === 0) {
@@ -58,4 +75,25 @@ export function validateUsername(username) {
     return { valid: false, message: "Username chỉ được chứa chữ cái, số và dấu gạch dưới" };
   }
   return { valid: true, message: "" };
+}
+
+// Crop management
+export function getCropTypes() {
+  return getAllCropTypes();
+}
+
+export function plantCropData(x, y, cropTypeId) {
+  return plantCrop(x, y, cropTypeId);
+}
+
+export function getPlantedCrops() {
+  return getAllPlantedCrops();
+}
+
+export function harvestCropData(x, y) {
+  return harvestCrop(x, y);
+}
+
+export function removePlantedCrop(x, y) {
+  return deletePlantedCrop(x, y);
 }

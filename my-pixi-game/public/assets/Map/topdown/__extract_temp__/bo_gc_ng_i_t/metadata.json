@@ -1,0 +1,22 @@
+{
+  "group_id": null,
+  "objects": [
+    {
+      "id": "1193022f-f624-481e-a1b8-dcb7f9e2e2fe",
+      "name": null,
+      "prompt": "bo g\u00f3c \u0111\u01b0\u1eddng \u0111i \u0111\u00e1t",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/unknown.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.0",
+  "export_date": "2026-05-28T06:54:04.306775"
+}

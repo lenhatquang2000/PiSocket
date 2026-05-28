@@ -38,12 +38,14 @@ import { io } from "socket.io-client";
     const idleBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
     const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
     const digBaseDir = '/assets/A_cute_chibi_anime_girl/animations/dig/';
+    const seedingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/seeding/';
 
     // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
     const idleAnimations = {};
     const attackAnimations = {};
     const digAnimations = {};
+    const seedingAnimations = {};
     const explosionFrames = [];
 
     const loadingScreen = document.getElementById('loading-screen');
@@ -61,6 +63,7 @@ import { io } from "socket.io-client";
         for (let i = 0; i < 4; i++) assetsToLoad.push(`${idleBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 6; i++) assetsToLoad.push(`${attackBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${digBaseDir}${dir}/frame_00${i}.png`);
+        for (let i = 0; i < 9; i++) assetsToLoad.push(`${seedingBaseDir}${dir}/frame_00${i}.png`);
     });
     
     // Tải texture của tất cả các vùng map từ config
@@ -80,8 +83,8 @@ import { io } from "socket.io-client";
         assetsToLoad.push(`/assets/Object/Forest/forest_obj_${i}.png`);
     }
 
-    // Thêm texture đất đã đào (Farming)
-    assetsToLoad.push('/assets/Farming1/south.png');
+    // Thêm texture đất đã đào (Farming) - CHỈ 1 TEXTURE
+    assetsToLoad.push('/assets/Farming1/2D_game_asset_cultivated_farm (14).png');
 
     // Thêm texture player frame để dùng cho collider
     assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
@@ -91,6 +94,27 @@ import { io } from "socket.io-client";
         const frameName = i < 10 ? `00${i}` : `0${i}`;
         assetsToLoad.push(`/assets/Skills/Explosion/frame_${frameName}.png`);
     }
+
+    // Thêm các frame cho cây lúa phát triển (16 frames) - load tất cả files trong thư mục seed
+    const riceFrameFiles = [
+        '1._Tiny_green_rice_seedling_sprout_emerg.png',
+        '2._Tiny_green_rice_seedling_tilted_sligh.png',
+        '3._Tiny_green_rice_seedling_standing_upr.png',
+        '4._Tiny_green_rice_seedling_tilted_sligh.png',
+        '5._Young_green_rice_plant_medium_height.png',
+        '6._Young_green_rice_plant_leaning_slight.png',
+        '7._Young_green_rice_plant_standing_uprig.png',
+        '8._Young_green_rice_plant_leaning_slight.png',
+        '9._Tall_green_rice_plant_with_flowering.png',
+        '10._Tall_green_rice_plant_with_flowers_s.png',
+        '11._Tall_green_rice_plant_with_flowers_s.png',
+        '12._Tall_green_rice_plant_with_flowers_s.png',
+        '13._Mature_golden_yellow_rice_plant_read.png',
+        '14._Mature_golden_yellow_rice_plant_with.png',
+        '15._Mature_golden_yellow_rice_plant_with.png',
+        '16._Mature_golden_yellow_rice_plant_with.png'
+    ];
+    riceFrameFiles.forEach(file => assetsToLoad.push(`/assets/seed/${file}`));
 
     assetsToLoad.push('/assets/Object/collision_data.json');
 
@@ -121,6 +145,7 @@ import { io } from "socket.io-client";
         const iFrames = [];
         const aFrames = [];
         const dFrames = [];
+        const sFrames = [];
         for (let i = 0; i < 6; i++) {
             wFrames.push(Assets.get(`${walkBaseDir}${dir}/frame_00${i}.png`));
         }
@@ -133,16 +158,45 @@ import { io } from "socket.io-client";
         for (let i = 0; i < 9; i++) {
             dFrames.push(Assets.get(`${digBaseDir}${dir}/frame_00${i}.png`));
         }
+        for (let i = 0; i < 9; i++) {
+            sFrames.push(Assets.get(`${seedingBaseDir}${dir}/frame_00${i}.png`));
+        }
         walkAnimations[dir] = wFrames;
         idleAnimations[dir] = iFrames;
         attackAnimations[dir] = aFrames;
         digAnimations[dir] = dFrames;
+        seedingAnimations[dir] = sFrames;
     });
 
     // Load explosion frames
     for (let i = 0; i < 16; i++) {
         const frameName = i < 10 ? `00${i}` : `0${i}`;
         explosionFrames.push(Assets.get(`/assets/Skills/Explosion/frame_${frameName}.png`));
+    }
+
+    // Load rice growth frames (16 frames) - Chia thành 4 giai đoạn
+    const riceGrowthFrames = {
+        stage1: [], // Frames 1-4: Mầm non
+        stage2: [], // Frames 5-8: Cây non
+        stage3: [], // Frames 9-12: Cây cao có hoa
+        stage4: []  // Frames 13-16: Cây chín vàng
+    };
+    
+    // Stage 1: Mầm non (frames 1-4)
+    for (let i = 0; i < 4; i++) {
+        riceGrowthFrames.stage1.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
+    }
+    // Stage 2: Cây non (frames 5-8)
+    for (let i = 4; i < 8; i++) {
+        riceGrowthFrames.stage2.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
+    }
+    // Stage 3: Cây cao có hoa (frames 9-12)
+    for (let i = 8; i < 12; i++) {
+        riceGrowthFrames.stage3.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
+    }
+    // Stage 4: Cây chín vàng (frames 13-16)
+    for (let i = 12; i < 16; i++) {
+        riceGrowthFrames.stage4.push(Assets.get(`/assets/seed/${riceFrameFiles[i]}`));
     }
 
     // --- TẠO THẾ GIỚI GAME (World Container) ---
@@ -480,7 +534,7 @@ import { io } from "socket.io-client";
     };
 
     // --- HÀM TẠO Ô ĐẤT ĐÃ ĐÀO ---
-    const createFarmedTile = (x, y) => {
+    const createFarmedTile = (x, y, saveToServer = true) => {
         // Kiểm tra xem vị trí này đã có ô đất đã đào chưa
         const tileSize = 32; // Kích thước grid
         const gridX = Math.round(x / tileSize) * tileSize;
@@ -497,20 +551,217 @@ import { io } from "socket.io-client";
             return;
         }
 
-        // Tạo sprite đất đã đào
-        const farmedTexture = Assets.get('/assets/Farming1/south.png');
+        // Tạo sprite đất đã đào - CHỈ DÙNG 1 TEXTURE
+        const farmedTexture = Assets.get('/assets/Farming1/2D_game_asset_cultivated_farm (14).png');
         const farmedSprite = new AnimatedSprite([farmedTexture]);
         farmedSprite.x = gridX;
         farmedSprite.y = gridY;
         farmedSprite.anchor.set(0.5, 0.5);
-        farmedSprite.scale.set(2.0); // Điều chỉnh kích thước cho phù hợp
+        
+        // Tính toán scale để sprite phủ kín grid
+        const textureSize = farmedTexture.width;
+        const targetSize = tileSize;
+        const scale = targetSize / textureSize;
+        farmedSprite.scale.set(scale);
+        
         farmedSprite.zIndex = 1; // Nằm trên nền đất nhưng dưới objects khác
 
         world.addChild(farmedSprite);
         farmedTiles.push(farmedSprite);
 
-        console.log(`✅ Đã tạo ô đất đã đào tại (${gridX}, ${gridY})`);
+        // Lưu vào server nếu cần
+        if (saveToServer) {
+            fetch(`${SOCKET_URL}/save-farmed-tile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: gridX, y: gridY })
+            }).catch(err => console.error("❌ Lỗi lưu farmed tile:", err));
+        }
+
+        console.log(`✅ Đã tạo ô đất đã đào tại (${gridX}, ${gridY}) với scale ${scale.toFixed(2)}`);
     };
+
+    // --- HÀM LOAD FARMED TILES TỪ SERVER ---
+    const loadFarmedTiles = async () => {
+        try {
+            const response = await fetch(`${SOCKET_URL}/get-farmed-tiles`);
+            const data = await response.json();
+            const tiles = data.tiles || [];
+            
+            console.log(`📦 Loading ${tiles.length} farmed tiles from server...`);
+            
+            tiles.forEach(tile => {
+                createFarmedTile(tile.x, tile.y, false); // false = không lưu lại vào server
+            });
+            
+            console.log(`✅ Loaded ${tiles.length} farmed tiles`);
+        } catch (err) {
+            console.error("❌ Lỗi load farmed tiles:", err);
+        }
+    };
+
+    // Load farmed tiles từ server
+    await loadFarmedTiles();
+
+    // --- CROP MANAGEMENT ---
+    const plantedCrops = []; // Lưu trữ các cây đã trồng
+    let cropTypes = []; // Danh sách loại cây trồng
+    let selectedCropType = null; // Loại cây đang được chọn
+    let isSeeding = false; // Khóa di chuyển khi đang trồng cây
+
+    // --- HÀM TẠO CÂY TRỒNG ---
+    const createPlantedCrop = (x, y, cropData, saveToServer = true, plantedAt = null) => {
+        const tileSize = 32;
+        const gridX = Math.round(x / tileSize) * tileSize;
+        const gridY = Math.round(y / tileSize) * tileSize;
+
+        // Kiểm tra xem vị trí này đã có cây chưa
+        const existingCrop = plantedCrops.find(crop => 
+            Math.abs(crop.x - gridX) < tileSize / 2 && 
+            Math.abs(crop.y - gridY) < tileSize / 2
+        );
+
+        if (existingCrop) {
+            console.log("⚠️ Vị trí này đã có cây trồng rồi!");
+            return false;
+        }
+
+        // Tạo animated sprite cây trồng - BẮT ĐẦU TỪ STAGE 1
+        const cropSprite = new AnimatedSprite(riceGrowthFrames.stage1);
+        cropSprite.x = gridX;
+        cropSprite.y = gridY;
+        cropSprite.anchor.set(0.5, 1); // Anchor ở dưới để cây mọc lên từ đất
+        cropSprite.scale.set(0.5); // Scale nhỏ lại cho phù hợp với tile 32x32
+        cropSprite.zIndex = 2; // Nằm trên đất đã đào
+        cropSprite.animationSpeed = 0.05; // Chậm để tạo hiệu ứng đung đưa
+        cropSprite.loop = true;
+        cropSprite.play();
+
+        world.addChild(cropSprite);
+        
+        const cropObject = {
+            sprite: cropSprite,
+            x: gridX,
+            y: gridY,
+            cropData: cropData,
+            plantedAt: plantedAt || Date.now(),
+            currentStage: 1, // Bắt đầu từ stage 1
+            maxStage: 4 // Tổng cộng 4 giai đoạn
+        };
+        
+        plantedCrops.push(cropObject);
+
+        // Lưu vào server nếu cần
+        if (saveToServer) {
+            fetch(`${SOCKET_URL}/plant-crop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: gridX, y: gridY, cropTypeId: cropData.id })
+            }).catch(err => console.error("❌ Lỗi lưu planted crop:", err));
+        }
+
+        console.log(`✅ Đã trồng ${cropData.display_name} tại (${gridX}, ${gridY}) - Stage 1`);
+        return true;
+    };
+
+    // --- HÀM LOAD CROP TYPES TỪ SERVER ---
+    const loadCropTypes = async () => {
+        try {
+            const response = await fetch(`${SOCKET_URL}/get-crop-types`);
+            const data = await response.json();
+            cropTypes = data.cropTypes || [];
+            
+            console.log(`📦 Loaded ${cropTypes.length} crop types`);
+            
+            // Tự động chọn loại cây đầu tiên
+            if (cropTypes.length > 0) {
+                selectedCropType = cropTypes[0];
+                updateCropSelectionUI();
+            }
+        } catch (err) {
+            console.error("❌ Lỗi load crop types:", err);
+        }
+    };
+
+    // --- HÀM LOAD PLANTED CROPS TỪ SERVER ---
+    const loadPlantedCrops = async () => {
+        try {
+            const response = await fetch(`${SOCKET_URL}/get-planted-crops`);
+            const data = await response.json();
+            const crops = data.crops || [];
+            
+            console.log(`📦 Loading ${crops.length} planted crops from server...`);
+            
+            crops.forEach(crop => {
+                const cropData = {
+                    id: crop.crop_type_id,
+                    name: crop.crop_name,
+                    display_name: crop.display_name,
+                    sprite_path: crop.sprite_path
+                };
+                // Parse planted_at từ server (SQLite datetime format)
+                const plantedAt = new Date(crop.planted_at).getTime();
+                createPlantedCrop(crop.x, crop.y, cropData, false, plantedAt);
+            });
+            
+            console.log(`✅ Loaded ${crops.length} planted crops`);
+        } catch (err) {
+            console.error("❌ Lỗi load planted crops:", err);
+        }
+    };
+
+    // --- HÀM CẬP NHẬT UI CHỌN CÂY ---
+    const updateCropSelectionUI = () => {
+        const cropList = document.getElementById('crop-list');
+        if (!cropList) return;
+
+        cropList.innerHTML = '';
+        
+        cropTypes.forEach(crop => {
+            const isSelected = selectedCropType && selectedCropType.id === crop.id;
+            const cropItem = document.createElement('div');
+            cropItem.style.cssText = `
+                padding: 10px;
+                background: ${isSelected ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+                border: 2px solid ${isSelected ? '#2ecc71' : 'transparent'};
+                border-radius: 5px;
+                cursor: pointer;
+                transition: all 0.2s;
+                color: white;
+                font-weight: ${isSelected ? 'bold' : 'normal'};
+            `;
+            cropItem.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🌾</span>
+                    <span>${crop.display_name}</span>
+                </div>
+            `;
+            
+            cropItem.addEventListener('mouseenter', () => {
+                if (!isSelected) {
+                    cropItem.style.background = 'rgba(255, 255, 255, 0.2)';
+                }
+            });
+            
+            cropItem.addEventListener('mouseleave', () => {
+                if (!isSelected) {
+                    cropItem.style.background = 'rgba(255, 255, 255, 0.1)';
+                }
+            });
+            
+            cropItem.addEventListener('click', () => {
+                selectedCropType = crop;
+                updateCropSelectionUI();
+                console.log(`✅ Đã chọn: ${crop.display_name}`);
+            });
+            
+            cropList.appendChild(cropItem);
+        });
+    };
+
+    // Load crop types và planted crops
+    await loadCropTypes();
+    await loadPlantedCrops();
 
     // Lắng nghe click chuột trái để tung chiêu
     app.canvas.addEventListener('pointerdown', (e) => {
@@ -975,6 +1226,12 @@ import { io } from "socket.io-client";
             characterContainer.visible = true; // Hiện nhân vật
             isGameStarted = true;
 
+            // Hiển thị UI chọn cây trồng
+            const cropPanel = document.getElementById('crop-selection-panel');
+            if (cropPanel) {
+                cropPanel.style.display = 'block';
+            }
+
             console.log("Game started as:", myGameId);
 
             // Báo cho server biết mình tham gia CHỈ KHI nhấn nút
@@ -1130,6 +1387,33 @@ import { io } from "socket.io-client";
         createFarmedTile(data.x, data.y);
     });
 
+    // NHẬN EVENT TRỒNG CÂY (SEED) từ người chơi khác
+    socket.on("playerSeed", (data) => {
+        console.log("Other player seeds:", data.id, "at:", data.x, data.y, "dir:", data.dir, "crop:", data.cropName);
+        const otherPlayer = otherPlayers[data.id];
+        if (otherPlayer && otherPlayer.sprite) {
+            // Chuyển animation sang seeding
+            otherPlayer.sprite.textures = seedingAnimations[data.dir];
+            otherPlayer.sprite.animationSpeed = 0.15;
+            otherPlayer.sprite.loop = false;
+            otherPlayer.sprite.gotoAndPlay(0);
+            otherPlayer.sprite.onComplete = () => {
+                // Quay về idle sau khi trồng xong
+                otherPlayer.sprite.textures = idleAnimations[data.dir];
+                otherPlayer.sprite.animationSpeed = 0.05;
+                otherPlayer.sprite.loop = true;
+                otherPlayer.sprite.play();
+            };
+        }
+
+        // Tạo cây trồng tại vị trí người chơi khác trồng
+        const cropData = {
+            id: data.cropTypeId,
+            display_name: data.cropName
+        };
+        createPlantedCrop(data.x, data.y, cropData, false);
+    });
+
     // Người chơi thoát ra
     socket.on("playerDisconnected", (id) => {
         if (otherPlayers[id]) {
@@ -1144,7 +1428,7 @@ import { io } from "socket.io-client";
         keys[e.code] = true;
         
         // Xử lý phím V - Kỹ năng Farming (Dig)
-        if (e.code === 'KeyV' && isGameStarted && !isDigging && !isAttacking) {
+        if (e.code === 'KeyV' && isGameStarted && !isDigging && !isAttacking && !isSeeding) {
             // Tìm skill Farming
             const farmingSkill = playerSkills.find(s => s.skill_type === 'farming');
             if (!farmingSkill) {
@@ -1207,6 +1491,105 @@ import { io } from "socket.io-client";
                 dir: currentDir
             });
         }
+
+        // Xử lý phím T - Kỹ năng Seeding (Trồng cây)
+        if (e.code === 'KeyT' && isGameStarted && !isDigging && !isAttacking && !isSeeding) {
+            // Kiểm tra đã chọn loại cây chưa
+            if (!selectedCropType) {
+                console.warn("⚠️ Bạn chưa chọn loại cây để trồng!");
+                return;
+            }
+
+            // Tìm skill Seeding
+            const seedingSkill = playerSkills.find(s => s.skill_type === 'seeding');
+            if (!seedingSkill) {
+                console.warn("⚠️ Bạn chưa có kỹ năng Seeding!");
+                return;
+            }
+
+            // Kiểm tra xem vị trí hiện tại có phải là đất đã đào không
+            const tileSize = 32;
+            const gridX = Math.round(characterContainer.x / tileSize) * tileSize;
+            const gridY = Math.round(characterContainer.y / tileSize) * tileSize;
+            
+            const isFarmedTile = farmedTiles.find(tile => 
+                Math.abs(tile.x - gridX) < tileSize / 2 && 
+                Math.abs(tile.y - gridY) < tileSize / 2
+            );
+
+            if (!isFarmedTile) {
+                console.warn("⚠️ Bạn phải đứng trên đất đã đào mới có thể trồng cây!");
+                return;
+            }
+
+            // Kiểm tra xem vị trí này đã có cây chưa
+            const hasPlantedCrop = plantedCrops.find(crop => 
+                Math.abs(crop.x - gridX) < tileSize / 2 && 
+                Math.abs(crop.y - gridY) < tileSize / 2
+            );
+
+            if (hasPlantedCrop) {
+                console.warn("⚠️ Vị trí này đã có cây trồng rồi!");
+                return;
+            }
+
+            const cooldownData = skillCooldowns[seedingSkill.skill_id];
+            const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+
+            // Kiểm tra cooldown
+            if (remaining > 0) {
+                console.warn(`⏱️ Kỹ năng Seeding đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                return;
+            }
+
+            // Kiểm tra MP
+            if (playerStats.mp < seedingSkill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${seedingSkill.mp_cost}, hiện có ${playerStats.mp}`);
+                return;
+            }
+
+            // Trừ MP
+            playerStats.mp -= seedingSkill.mp_cost;
+            console.log(`✅ Sử dụng Seeding! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+
+            // Ghi nhận sử dụng skill
+            fetch(`${SOCKET_URL}/use-skill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myGameId, skillId: seedingSkill.skill_id })
+            }).catch(err => console.error("❌ Lỗi record skill:", err));
+
+            // Reset cooldown
+            skillCooldowns[seedingSkill.skill_id].elapsed = 0;
+
+            // Trigger animation seeding
+            isSeeding = true;
+            isMoving = false;
+            
+            character.textures = seedingAnimations[currentDir];
+            character.animationSpeed = 0.15;
+            character.loop = false;
+            character.gotoAndPlay(0);
+            character.onComplete = () => {
+                isSeeding = false;
+                character.textures = idleAnimations[currentDir];
+                character.animationSpeed = 0.05;
+                character.loop = true;
+                character.play();
+            };
+
+            // Tạo cây trồng tại vị trí player
+            createPlantedCrop(characterContainer.x, characterContainer.y, selectedCropType);
+
+            // Gửi event seed cho người chơi khác
+            socket.emit("playerSeed", {
+                x: characterContainer.x,
+                y: characterContainer.y,
+                dir: currentDir,
+                cropTypeId: selectedCropType.id,
+                cropName: selectedCropType.display_name
+            });
+        }
         
         // Test HP/MP - Phím 1 để giảm HP, Phím 2 để tăng HP, Phím 3 để giảm MP, Phím 4 để tăng MP
         if (isGameStarted) {
@@ -1240,8 +1623,8 @@ import { io } from "socket.io-client";
     app.ticker.add((ticker) => {
         if (!isGameStarted) return; // Chỉ chạy khi đã nhấn nút
 
-        // Nếu đang tấn công hoặc đang đào thì không xử lý di chuyển
-        if (isAttacking || isDigging) {
+        // Nếu đang tấn công, đang đào, hoặc đang trồng cây thì không xử lý di chuyển
+        if (isAttacking || isDigging || isSeeding) {
             if (isMoving) {
                 isMoving = false;
                 // Gửi update để người chơi khác thấy mình đứng yên
