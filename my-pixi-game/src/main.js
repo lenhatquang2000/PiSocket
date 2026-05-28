@@ -8,6 +8,7 @@ import { io } from "socket.io-client";
     const otherPlayers = {}; // Lưu trữ container của người chơi khác
     const collidableObjects = []; // Lưu trữ các vật thể có va chạm
     const objectSprites = []; // Lưu trữ sprites của objects để depth sorting
+    const farmedTiles = []; // Lưu trữ các ô đất đã đào
 
     // --- SOCKET CONNECTION LOGGING ---
     socket.on("connect", () => console.log("✅ Connected to server, id:", socket.id));
@@ -36,11 +37,13 @@ import { io } from "socket.io-client";
     const walkBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/';
     const idleBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
     const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
+    const digBaseDir = '/assets/A_cute_chibi_anime_girl/animations/dig/';
 
     // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
     const idleAnimations = {};
     const attackAnimations = {};
+    const digAnimations = {};
     const explosionFrames = [];
 
     const loadingScreen = document.getElementById('loading-screen');
@@ -57,6 +60,7 @@ import { io } from "socket.io-client";
         for (let i = 0; i < 6; i++) assetsToLoad.push(`${walkBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 4; i++) assetsToLoad.push(`${idleBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 6; i++) assetsToLoad.push(`${attackBaseDir}${dir}/frame_00${i}.png`);
+        for (let i = 0; i < 9; i++) assetsToLoad.push(`${digBaseDir}${dir}/frame_00${i}.png`);
     });
     
     // Tải texture của tất cả các vùng map từ config
@@ -75,6 +79,9 @@ import { io } from "socket.io-client";
     for (let i = 0; i < 16; i++) {
         assetsToLoad.push(`/assets/Object/Forest/forest_obj_${i}.png`);
     }
+
+    // Thêm texture đất đã đào (Farming)
+    assetsToLoad.push('/assets/Farming1/south.png');
 
     // Thêm texture player frame để dùng cho collider
     assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
@@ -113,6 +120,7 @@ import { io } from "socket.io-client";
         const wFrames = [];
         const iFrames = [];
         const aFrames = [];
+        const dFrames = [];
         for (let i = 0; i < 6; i++) {
             wFrames.push(Assets.get(`${walkBaseDir}${dir}/frame_00${i}.png`));
         }
@@ -122,9 +130,13 @@ import { io } from "socket.io-client";
         for (let i = 0; i < 6; i++) {
             aFrames.push(Assets.get(`${attackBaseDir}${dir}/frame_00${i}.png`));
         }
+        for (let i = 0; i < 9; i++) {
+            dFrames.push(Assets.get(`${digBaseDir}${dir}/frame_00${i}.png`));
+        }
         walkAnimations[dir] = wFrames;
         idleAnimations[dir] = iFrames;
         attackAnimations[dir] = aFrames;
+        digAnimations[dir] = dFrames;
     });
 
     // Load explosion frames
@@ -467,6 +479,39 @@ import { io } from "socket.io-client";
         explosion.play();
     };
 
+    // --- HÀM TẠO Ô ĐẤT ĐÃ ĐÀO ---
+    const createFarmedTile = (x, y) => {
+        // Kiểm tra xem vị trí này đã có ô đất đã đào chưa
+        const tileSize = 32; // Kích thước grid
+        const gridX = Math.round(x / tileSize) * tileSize;
+        const gridY = Math.round(y / tileSize) * tileSize;
+
+        // Kiểm tra xem đã có tile tại vị trí này chưa
+        const existingTile = farmedTiles.find(tile => 
+            Math.abs(tile.x - gridX) < tileSize / 2 && 
+            Math.abs(tile.y - gridY) < tileSize / 2
+        );
+
+        if (existingTile) {
+            console.log("⚠️ Vị trí này đã được đào rồi!");
+            return;
+        }
+
+        // Tạo sprite đất đã đào
+        const farmedTexture = Assets.get('/assets/Farming1/south.png');
+        const farmedSprite = new AnimatedSprite([farmedTexture]);
+        farmedSprite.x = gridX;
+        farmedSprite.y = gridY;
+        farmedSprite.anchor.set(0.5, 0.5);
+        farmedSprite.scale.set(2.0); // Điều chỉnh kích thước cho phù hợp
+        farmedSprite.zIndex = 1; // Nằm trên nền đất nhưng dưới objects khác
+
+        world.addChild(farmedSprite);
+        farmedTiles.push(farmedSprite);
+
+        console.log(`✅ Đã tạo ô đất đã đào tại (${gridX}, ${gridY})`);
+    };
+
     // Lắng nghe click chuột trái để tung chiêu
     app.canvas.addEventListener('pointerdown', (e) => {
         if (e.button === 0 && isGameStarted) { // 0 là chuột trái
@@ -557,6 +602,7 @@ import { io } from "socket.io-client";
     let currentDir = 'south';
     let isMoving = false;
     let isAttacking = false; // Khóa di chuyển khi đang tấn công
+    let isDigging = false; // Khóa di chuyển khi đang đào đất
     let isSkillOnCooldown = false; // Đang trong cooldown
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
@@ -1061,6 +1107,29 @@ import { io } from "socket.io-client";
         playExplosionSkill(data.targetX, data.targetY);
     });
 
+    // NHẬN EVENT ĐÀO ĐẤT (DIG) từ người chơi khác
+    socket.on("playerDig", (data) => {
+        console.log("Other player digs:", data.id, "at:", data.x, data.y, "dir:", data.dir);
+        const otherPlayer = otherPlayers[data.id];
+        if (otherPlayer && otherPlayer.sprite) {
+            // Chuyển animation sang dig
+            otherPlayer.sprite.textures = digAnimations[data.dir];
+            otherPlayer.sprite.animationSpeed = 0.15;
+            otherPlayer.sprite.loop = false;
+            otherPlayer.sprite.gotoAndPlay(0);
+            otherPlayer.sprite.onComplete = () => {
+                // Quay về idle sau khi đào xong
+                otherPlayer.sprite.textures = idleAnimations[data.dir];
+                otherPlayer.sprite.animationSpeed = 0.05;
+                otherPlayer.sprite.loop = true;
+                otherPlayer.sprite.play();
+            };
+        }
+
+        // Tạo ô đất đã đào tại vị trí người chơi khác đào
+        createFarmedTile(data.x, data.y);
+    });
+
     // Người chơi thoát ra
     socket.on("playerDisconnected", (id) => {
         if (otherPlayers[id]) {
@@ -1073,6 +1142,71 @@ import { io } from "socket.io-client";
     const keys = {};
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
+        
+        // Xử lý phím V - Kỹ năng Farming (Dig)
+        if (e.code === 'KeyV' && isGameStarted && !isDigging && !isAttacking) {
+            // Tìm skill Farming
+            const farmingSkill = playerSkills.find(s => s.skill_type === 'farming');
+            if (!farmingSkill) {
+                console.warn("⚠️ Bạn chưa có kỹ năng Farming!");
+                return;
+            }
+
+            const cooldownData = skillCooldowns[farmingSkill.skill_id];
+            const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+
+            // Kiểm tra cooldown
+            if (remaining > 0) {
+                console.warn(`⏱️ Kỹ năng Farming đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                return;
+            }
+
+            // Kiểm tra MP
+            if (playerStats.mp < farmingSkill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${farmingSkill.mp_cost}, hiện có ${playerStats.mp}`);
+                return;
+            }
+
+            // Trừ MP
+            playerStats.mp -= farmingSkill.mp_cost;
+            console.log(`✅ Sử dụng Farming! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+
+            // Ghi nhận sử dụng skill
+            fetch(`${SOCKET_URL}/use-skill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myGameId, skillId: farmingSkill.skill_id })
+            }).catch(err => console.error("❌ Lỗi record skill:", err));
+
+            // Reset cooldown
+            skillCooldowns[farmingSkill.skill_id].elapsed = 0;
+
+            // Trigger animation dig
+            isDigging = true;
+            isMoving = false;
+            
+            character.textures = digAnimations[currentDir];
+            character.animationSpeed = 0.15;
+            character.loop = false;
+            character.gotoAndPlay(0);
+            character.onComplete = () => {
+                isDigging = false;
+                character.textures = idleAnimations[currentDir];
+                character.animationSpeed = 0.05;
+                character.loop = true;
+                character.play();
+            };
+
+            // Tạo ô đất đã đào tại vị trí player
+            createFarmedTile(characterContainer.x, characterContainer.y);
+
+            // Gửi event dig cho người chơi khác
+            socket.emit("playerDig", {
+                x: characterContainer.x,
+                y: characterContainer.y,
+                dir: currentDir
+            });
+        }
         
         // Test HP/MP - Phím 1 để giảm HP, Phím 2 để tăng HP, Phím 3 để giảm MP, Phím 4 để tăng MP
         if (isGameStarted) {
@@ -1106,11 +1240,11 @@ import { io } from "socket.io-client";
     app.ticker.add((ticker) => {
         if (!isGameStarted) return; // Chỉ chạy khi đã nhấn nút
 
-        // Nếu đang tấn công thì không xử lý di chuyển
-        if (isAttacking) {
+        // Nếu đang tấn công hoặc đang đào thì không xử lý di chuyển
+        if (isAttacking || isDigging) {
             if (isMoving) {
                 isMoving = false;
-                // Gửi update để người chơi khác thấy mình đứng yên tấn công
+                // Gửi update để người chơi khác thấy mình đứng yên
                 socket.emit("playerMovement", {
                     x: characterContainer.x,
                     y: characterContainer.y,

@@ -268,6 +268,19 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Event riêng cho đào đất (dig) — broadcast với vị trí và hướng
+  socket.on("playerDig", (digData) => {
+    if (players[socket.id]) {
+      console.log(`Player ${players[socket.id].name} digs at (${digData.x}, ${digData.y}) facing ${digData.dir}`);
+      socket.broadcast.emit("playerDig", { 
+        id: socket.id, 
+        x: digData.x, 
+        y: digData.y,
+        dir: digData.dir
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("Player disconnected:", socket.id);
     if (players[socket.id]) {
