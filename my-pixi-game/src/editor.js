@@ -3,6 +3,7 @@ const ctx = canvas.getContext('2d');
 const outputJson = document.getElementById('outputJson');
 const desertList = document.getElementById('desert-list');
 const forestList = document.getElementById('forest-list');
+const innerhouseList = document.getElementById('innerhouse-list');
 const seedList = document.getElementById('seed-list');
 const mapList = document.getElementById('map-list');
 
@@ -332,6 +333,25 @@ const loadLists = () => {
         const path = `/assets/Object/Forest/forest_obj_${i}.png`;
         createItem(path, forestList);
     }
+    
+    // Load innerhouse objects from server
+    fetch('http://localhost:3000/get-innerhouse-objects')
+        .then(res => res.json())
+        .then(data => {
+            console.log(`Loading ${data.objects.length} innerhouse objects`);
+            data.objects.forEach(path => {
+                createItem(path, innerhouseList);
+            });
+        })
+        .catch(err => {
+            console.error('Error loading innerhouse objects:', err);
+            // Fallback to hardcoded list
+            const innerhouseFiles = ['hose.png', 'innerwallhouse1.png', 'innerwallhouse2.png'];
+            innerhouseFiles.forEach(file => {
+                const path = `/assets/Object/innerhouse/${file}`;
+                createItem(path, innerhouseList);
+            });
+        });
     
     // Load seed/crop assets
     const seedFiles = [

@@ -40,8 +40,41 @@
         .tab-btn:hover { background: #34495e; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .collapsible-section { margin-bottom: 10px; }
+        .collapsible-header { 
+            cursor: pointer; 
+            user-select: none; 
+            padding: 8px; 
+            background: rgba(52, 152, 219, 0.2); 
+            border-radius: 4px; 
+            margin: 5px 0;
+            transition: background 0.2s;
+        }
+        .collapsible-header:hover { background: rgba(52, 152, 219, 0.3); }
+        .collapse-icon { 
+            display: inline-block; 
+            transition: transform 0.2s; 
+            font-size: 12px;
+        }
+        .collapsible-header.collapsed .collapse-icon { transform: rotate(-90deg); }
+        .collapsible-content { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            transition: max-height 0.3s ease;
+        }
+        .collapsible-content.collapsed { 
+            max-height: 0; 
+            overflow: hidden; 
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function toggleSection(header) {
+            header.classList.toggle('collapsed');
+            const content = header.nextElementSibling;
+            content.classList.toggle('collapsed');
+        }
+    </script>
 </head>
 <body>
     <div id="sidebar">
@@ -60,6 +93,8 @@
             <div id="desert-list"></div>
             <h3>Forest Objects</h3>
             <div id="forest-list"></div>
+            <h3>Innerhouse Objects</h3>
+            <div id="innerhouse-list"></div>
             <h3>Seed / Crop</h3>
             <div id="seed-list"></div>
         </div>
@@ -111,12 +146,43 @@
                 </select>
                 <button id="loadSubmapForObjectsBtn" style="width: 100%; padding: 8px; margin-top: 8px; background: #3498db;">📂 Load Sub-Map để đặt Object</button>
             </div>
-            <h3>Map2 Tiles</h3>
-            <div id="submap-object-tiles-list"></div>
-            <h3>Desert Objects</h3>
-            <div id="submap-object-desert-list"></div>
-            <h3>Forest Objects</h3>
-            <div id="submap-object-forest-list"></div>
+            
+            <div style="margin-bottom: 15px; padding: 10px; background: rgba(241, 196, 15, 0.12); border-radius: 4px;">
+                <label style="font-weight: bold; color: #f1c40f;">⚙️ Điều chỉnh Grid:</label>
+                <div style="margin-top: 8px;">
+                    <label style="font-size: 12px;">Kích thước Tile (px):</label>
+                    <input type="number" id="submapObjectTileSize" value="32" min="16" max="128" step="8" style="width: 100%; padding: 5px; margin-top: 3px;">
+                    <p style="font-size: 11px; color: #95a5a6; margin: 5px 0 0 0;">Thay đổi kích thước ô grid để đặt objects</p>
+                </div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h3 class="collapsible-header collapsed" onclick="toggleSection(this)">
+                    <span class="collapse-icon">▼</span> Map2 Tiles
+                </h3>
+                <div class="collapsible-content collapsed" id="submap-object-tiles-list"></div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h3 class="collapsible-header collapsed" onclick="toggleSection(this)">
+                    <span class="collapse-icon">▼</span> Desert Objects
+                </h3>
+                <div class="collapsible-content collapsed" id="submap-object-desert-list"></div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h3 class="collapsible-header collapsed" onclick="toggleSection(this)">
+                    <span class="collapse-icon">▼</span> Forest Objects
+                </h3>
+                <div class="collapsible-content collapsed" id="submap-object-forest-list"></div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h3 class="collapsible-header collapsed" onclick="toggleSection(this)">
+                    <span class="collapse-icon">▼</span> Inner House Objects
+                </h3>
+                <div class="collapsible-content collapsed" id="submap-object-innerhouse-list"></div>
+            </div>
         </div>
         
         <div id="worldmap-tab" class="tab-content">
@@ -202,12 +268,31 @@
                 <button id="submapFreeBtn" style="width: 100%; padding: 8px; background: #9b59b6;">📍 Đặt Tự Do (Chéo)</button>
             </div>
             <div style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; background: rgba(52, 152, 219, 0.2); border-radius: 4px;">
+                    <input type="checkbox" id="canReplaceCheckbox" checked style="margin-right: 8px;">
+                    <span>✅ Cho phép thay thế object</span>
+                </label>
+                <p style="font-size: 11px; color: #95a5a6; margin: 5px 0 0 0;">Bỏ tick để đặt chồng objects</p>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button id="deleteSelectedBtn" style="width: 100%; padding: 8px; background: #e67e22; display: none;">🗑️ Xóa Objects đã chọn</button>
+            </div>
+            <div style="margin-bottom: 10px;">
                 <label>Góc xoay Grid (độ):</label>
                 <input type="number" id="submapRotationInput" value="0" min="0" max="360" step="5" style="width: 100%; padding: 5px; margin-top: 5px;">
             </div>
             <div id="objectRotationPanel" style="margin-bottom: 10px; display: none; padding: 10px; background: rgba(52, 152, 219, 0.2); border-radius: 4px;">
                 <label style="color: #3498db; font-weight: bold;">🔧 Xoay Object đã chọn:</label>
                 <input type="number" id="objectRotationInput" value="0" min="0" max="360" step="5" style="width: 100%; padding: 5px; margin-top: 5px;">
+                <div style="margin-top: 10px;">
+                    <label style="color: #3498db; font-weight: bold;">📏 Kích thước Object:</label>
+                    <input type="range" id="objectScaleInput" value="1.0" min="0.1" max="5" step="0.1" style="width: 100%; margin-top: 5px;">
+                    <span id="objectScaleValue" style="color: #ecf0f1; font-size: 12px;">1.0x</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="color: #3498db; font-weight: bold;">📊 Z-Index Object:</label>
+                    <input type="number" id="objectZIndexInput" value="1" min="0" max="100" step="1" style="width: 100%; padding: 5px; margin-top: 5px;">
+                </div>
                 <div style="margin-top: 10px;">
                     <label style="display: flex; align-items: center; cursor: pointer;">
                         <input type="checkbox" id="pixelMoveCheckbox" style="margin-right: 5px;">

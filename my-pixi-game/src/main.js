@@ -281,10 +281,12 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             }
             
             console.log(`📍 Placing submap "${submap.name}" at (${placedSubmap.x}, ${placedSubmap.y})`);
+            console.log(`   Submap tileSize: ${submap.tileSize}, gridType: ${submap.gridType}`);
+            console.log(`   Total objects: ${submap.objects ? submap.objects.length : 0}`);
             
             // Render objects trong submap
             if (submap.objects && submap.objects.length > 0) {
-                submap.objects.forEach(obj => {
+                submap.objects.forEach((obj, index) => {
                     const objTexture = Assets.get(obj.path);
                     if (!objTexture) {
                         console.warn(`⚠️ Texture not found: ${obj.path}`);
@@ -302,18 +304,25 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                         // Free placement - obj.x, obj.y là pixel coordinates
                         worldX = placedSubmap.x + obj.x;
                         worldY = placedSubmap.y + obj.y;
+                        console.log(`   Object ${index} (FREE): ${obj.path}`);
+                        console.log(`      Local pos: (${obj.x}, ${obj.y})`);
+                        console.log(`      World pos: (${worldX}, ${worldY})`);
                     } else {
                         // Grid placement - obj.x, obj.y là grid coordinates
                         worldX = placedSubmap.x + (obj.x * submap.tileSize);
                         worldY = placedSubmap.y + (obj.y * submap.tileSize);
+                        console.log(`   Object ${index} (GRID): ${obj.path}`);
+                        console.log(`      Grid pos: (${obj.x}, ${obj.y})`);
+                        console.log(`      TileSize: ${submap.tileSize}`);
+                        console.log(`      World pos: (${worldX}, ${worldY})`);
                     }
                     
                     sprite.x = worldX;
                     sprite.y = worldY;
-                    sprite.anchor.set(0.5, 0.5);
+                    sprite.anchor.set(0, 0); // Use top-left anchor to match editor
                     
                     // Use original image size (from submap editor)
-                    const scale = 1.0; // Objects already have correct size from editor
+                    const scale = obj.scale || 1.0; // Use scale from editor if available
                     sprite.scale.set(scale);
                     
                     // Apply rotation if exists
@@ -322,6 +331,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                     }
                     
                     sprite.isTopdownGround = obj.path.startsWith('/assets/Map/topdown/') || obj.path.startsWith('/assets/Farming1/2D_game_asset_cultivated_farm');
+                    sprite.editorZIndex = (obj.zIndex || 1) * 100; // Store editor zIndex as offset
                     sprite.zIndex = sprite.isTopdownGround ? -1000000 : (obj.zIndex ?? 1); // Objects above ground
                     world.addChild(sprite);
                     objectSprites.push(sprite);
@@ -1986,9 +1996,16 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         world.y = (app.screen.height / 2) - (characterContainer.y * world.scale.y) + shakeOffset.y;
 
         // --- DEPTH SORTING ---
-        // Cập nhật zIndex cho objects trước (chỉ dựa trên Y)
+        // Cập nhật zIndex cho objects (kết hợp Y position và zIndex từ editor)
         objectSprites.forEach(sprite => {
-            sprite.zIndex = sprite.isTopdownGround ? -1000000 : Math.floor(sprite.y * 10);
+            if (sprite.isTopdownGround) {
+                sprite.zIndex = -1000000;
+            } else {
+                // Base zIndex từ Y position + offset từ editor zIndex
+                const baseZIndex = Math.floor(sprite.y * 10);
+                const zIndexOffset = sprite.editorZIndex || 0;
+                sprite.zIndex = baseZIndex + zIndexOffset;
+            }
         });
 
         // Cập nhật zIndex cho crop sprites (cây trồng) theo Y

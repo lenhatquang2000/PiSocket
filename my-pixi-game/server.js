@@ -423,6 +423,31 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: err.message }));
     }
   }
+  // Endpoint để lấy tất cả ảnh từ thư mục innerhouse
+  else if (req.method === 'GET' && req.url === '/get-innerhouse-objects') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Object/innerhouse');
+      
+      if (!fs.existsSync(dirPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ objects: [] }));
+        return;
+      }
+      
+      const files = fs.readdirSync(dirPath);
+      const objects = files
+        .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+        .map(file => `/assets/Object/innerhouse/${file}`);
+      
+      console.log(`✅ Found ${objects.length} objects in innerhouse folder`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ objects }));
+    } catch (err) {
+      console.error("❌ Lỗi get innerhouse objects:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
   // Endpoint để lấy tất cả ảnh từ thư mục Map2
   else if (req.method === 'GET' && req.url === '/get-map2-tiles') {
     try {
@@ -469,6 +494,31 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ tiles }));
     } catch (err) {
       console.error("❌ Lỗi get topdown tiles:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Endpoint để lấy tất cả ảnh từ thư mục innerhouse
+  else if (req.method === 'GET' && req.url === '/get-innerhouse-tiles') {
+    try {
+      const dirPath = path.join(__dirname, 'public/assets/Object/innerhouse');
+      
+      if (!fs.existsSync(dirPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ tiles: [] }));
+        return;
+      }
+      
+      const files = fs.readdirSync(dirPath);
+      const tiles = files
+        .filter(file => file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'))
+        .map(file => `/assets/Object/innerhouse/${file}`);
+      
+      console.log(`✅ Found ${tiles.length} tiles in innerhouse folder`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tiles }));
+    } catch (err) {
+      console.error("❌ Lỗi get innerhouse tiles:", err);
       res.writeHead(500);
       res.end(JSON.stringify({ error: err.message }));
     }

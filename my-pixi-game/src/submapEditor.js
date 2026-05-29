@@ -26,7 +26,8 @@ export let submapState = {
     isPainting: false, // Is painting (drag to paint)
     lastPaintedCell: null, // Last painted cell {x, y} to prevent duplicates
     editorMode: 'ground',
-    objects: [], // { x, y, path, img, isFree, rotation, placementLayer }
+    canReplace: true, // Allow replacing objects at same position
+    objects: [], // { x, y, path, img, isFree, rotation, scale, zIndex, placementLayer }
     isCreated: false,
     lastPanX: 0,
     lastPanY: 0,
@@ -59,6 +60,7 @@ export const setupSubmapEditor = () => {
     const submapObjectTilesList = document.getElementById('submap-object-tiles-list');
     const submapObjectDesertList = document.getElementById('submap-object-desert-list');
     const submapObjectForestList = document.getElementById('submap-object-forest-list');
+    const submapObjectInnerhouseList = document.getElementById('submap-object-innerhouse-list');
     const loadSubmapForObjectsBtn = document.getElementById('loadSubmapForObjectsBtn');
     
     // Load ALL Map2 tiles from server
@@ -146,6 +148,25 @@ export const setupSubmapEditor = () => {
         createSubmapItem(path, submapObjectForestList, 'objects');
     }
     
+    // Load innerhouse objects from server
+    fetch('http://localhost:3000/get-innerhouse-objects')
+        .then(res => res.json())
+        .then(data => {
+            console.log(`Loading ${data.objects.length} objects from innerhouse folder`);
+            data.objects.forEach(path => {
+                createSubmapItem(path, submapObjectInnerhouseList, 'objects');
+            });
+        })
+        .catch(err => {
+            console.error('Error loading innerhouse objects:', err);
+            // Fallback to hardcoded list if server fails
+            const innerhouseFiles = ['hose.png', 'innerwallhouse1.png', 'innerwallhouse2.png'];
+            innerhouseFiles.forEach(file => {
+                const path = `/assets/Object/innerhouse/${file}`;
+                createSubmapItem(path, submapObjectInnerhouseList, 'objects');
+            });
+        });
+    
     refreshSubmapObjectLoadList();
     if (loadSubmapForObjectsBtn) {
         loadSubmapForObjectsBtn.onclick = loadSelectedSubmapForObjects;
@@ -230,11 +251,42 @@ export const setupSubmapEditor = () => {
         }
     };
     
+    // Object scale input
+    const objectScaleInput = document.getElementById('objectScaleInput');
+    const objectScaleValue = document.getElementById('objectScaleValue');
+    if (objectScaleInput && objectScaleValue) {
+        objectScaleInput.oninput = (e) => {
+            if (submapState.selectedObject) {
+                submapState.selectedObject.scale = parseFloat(e.target.value) || 1.0;
+                objectScaleValue.textContent = submapState.selectedObject.scale.toFixed(1) + 'x';
+                drawSubmap();
+            }
+        };
+    }
+    
+    // Object zIndex input
+    const objectZIndexInput = document.getElementById('objectZIndexInput');
+    if (objectZIndexInput) {
+        objectZIndexInput.oninput = (e) => {
+            if (submapState.selectedObject) {
+                submapState.selectedObject.zIndex = parseInt(e.target.value) || 1;
+                drawSubmap();
+            }
+        };
+    }
+    
     // Pixel move checkbox
     const pixelMoveCheckbox = document.getElementById('pixelMoveCheckbox');
     pixelMoveCheckbox.onchange = (e) => {
         submapState.pixelMove = e.target.checked;
         console.log('Pixel move mode:', submapState.pixelMove);
+    };
+    
+    // Can replace checkbox
+    const canReplaceCheckbox = document.getElementById('canReplaceCheckbox');
+    canReplaceCheckbox.onchange = (e) => {
+        submapState.canReplace = e.target.checked;
+        console.log('Can replace mode:', submapState.canReplace);
     };
     
     // Deselect object button
@@ -509,6 +561,11 @@ const drawSubmap = () => {
     
     // Draw objects WITHOUT rotation (always upright)
     [...submapState.objects].sort((a, b) => {
+        // Sort by zIndex first, then by placementLayer
+        const zIndexA = a.zIndex || 1;
+        const zIndexB = b.zIndex || 1;
+        if (zIndexA !== zIndexB) return zIndexA - zIndexB;
+        
         const layerA = getObjectPlacementLayer(a) === 'objects' ? 1 : 0;
         const layerB = getObjectPlacementLayer(b) === 'objects' ? 1 : 0;
         return layerA - layerB;
@@ -539,8 +596,9 @@ const drawSubmap = () => {
             }
             
             // Use original image size (not scaled by tile size)
-            const drawWidth = obj.img.width * submapState.zoom;
-            const drawHeight = obj.img.height * submapState.zoom;
+            const scale = obj.scale || 1.0;
+            const drawWidth = obj.img.width * submapState.zoom * scale;
+            const drawHeight = obj.img.height * submapState.zoom * scale;
             
             // Apply object rotation if exists
             if (obj.rotation && obj.rotation !== 0) {
@@ -744,7 +802,7 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
                 img: submapState.selectedTileImg,
                 isFree: true,
                 placementLayer: submapState.editorMode,
-                rotation: 0
+                rotation: 0, scale: 1.0, zIndex: 1
             });
             drawSubmap();
         }
@@ -799,10 +857,12 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
                     !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
                 );
             } else if (submapState.selectedTileImg) {
-                // Remove existing grid object at this position
-                submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
-                );
+                // Remove existing grid object at this position (only if canReplace is true)
+                if (submapState.canReplace) {
+                    submapState.objects = submapState.objects.filter(obj => 
+                        !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
+                    );
+                }
                 
                 // Add new object
                 submapState.objects.push({
@@ -813,7 +873,7 @@ const placeObjectAtMouse = (mouseX, mouseY) => {
                     isFree: false,
                     gridType: submapState.gridType, // Store grid type for rendering
                     placementLayer: submapState.editorMode,
-                    rotation: 0
+                    rotation: 0, scale: 1.0, zIndex: 1
                 });
             }
             drawSubmap();
@@ -851,8 +911,9 @@ const onSubmapMouseDown = (e) => {
             }
         }
         
-        const drawWidth = obj.img.width * submapState.zoom;
-        const drawHeight = obj.img.height * submapState.zoom;
+        const scale = obj.scale || 1.0;
+        const drawWidth = obj.img.width * submapState.zoom * scale;
+        const drawHeight = obj.img.height * submapState.zoom * scale;
         
         if (mouseX >= screenX && mouseX <= screenX + drawWidth &&
             mouseY >= screenY && mouseY <= screenY + drawHeight) {
@@ -1083,8 +1144,9 @@ const onSubmapMouseUp = (e) => {
             }
         }
         
-        const drawWidth = obj.img.width * submapState.zoom;
-        const drawHeight = obj.img.height * submapState.zoom;
+        const scale = obj.scale || 1.0;
+        const drawWidth = obj.img.width * submapState.zoom * scale;
+        const drawHeight = obj.img.height * submapState.zoom * scale;
         
         if (mouseX >= screenX && mouseX <= screenX + drawWidth &&
             mouseY >= screenY && mouseY <= screenY + drawHeight) {
@@ -1098,6 +1160,16 @@ const onSubmapMouseUp = (e) => {
         submapState.selectedObject = clickedObject;
         document.getElementById('objectRotationPanel').style.display = 'block';
         document.getElementById('objectRotationInput').value = clickedObject.rotation || 0;
+        const scaleInput = document.getElementById('objectScaleInput');
+        const scaleValue = document.getElementById('objectScaleValue');
+        if (scaleInput && scaleValue) {
+            scaleInput.value = clickedObject.scale || 1.0;
+            scaleValue.textContent = (clickedObject.scale || 1.0).toFixed(1) + 'x';
+        }
+        const zIndexInput = document.getElementById('objectZIndexInput');
+        if (zIndexInput) {
+            zIndexInput.value = clickedObject.zIndex || 1;
+        }
         document.getElementById('pixelMoveCheckbox').checked = false;
         submapState.pixelMove = false;
         console.log('Selected object for rotation/movement');
@@ -1127,7 +1199,7 @@ const onSubmapMouseUp = (e) => {
                 img: submapState.selectedTileImg,
                 isFree: true,
                 placementLayer: submapState.editorMode,
-                rotation: 0
+                rotation: 0, scale: 1.0, zIndex: 1
             });
             console.log('Added free object, total objects:', submapState.objects.length);
             drawSubmap();
@@ -1193,10 +1265,12 @@ const onSubmapMouseUp = (e) => {
                 );
                 console.log('Erased objects:', beforeCount - submapState.objects.length);
             } else if (submapState.selectedTileImg) {
-                // Remove existing grid object at this position
-                submapState.objects = submapState.objects.filter(obj => 
-                    !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
-                );
+                // Remove existing grid object at this position (only if canReplace is true)
+                if (submapState.canReplace) {
+                    submapState.objects = submapState.objects.filter(obj => 
+                        !(obj.x === gridX && obj.y === gridY && !obj.isFree && getObjectPlacementLayer(obj) === submapState.editorMode)
+                    );
+                }
                 
                 // Add new object
                 submapState.objects.push({
@@ -1207,7 +1281,7 @@ const onSubmapMouseUp = (e) => {
                     isFree: false,
                     gridType: submapState.gridType, // Store grid type for rendering
                     placementLayer: submapState.editorMode,
-                    rotation: 0
+                    rotation: 0, scale: 1.0, zIndex: 1
                 });
                 console.log('Added grid object, total objects:', submapState.objects.length);
             } else {
@@ -1227,6 +1301,24 @@ const onSubmapClick = (e) => {
 const onSubmapWheel = (e) => {
     if (!submapState.isCreated) return;
     e.preventDefault();
+    
+    // If an object is selected, zoom that object instead of the canvas
+    if (submapState.selectedObject) {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        submapState.selectedObject.scale = Math.max(0.1, Math.min(5, (submapState.selectedObject.scale || 1.0) + delta));
+        console.log('Object scale:', submapState.selectedObject.scale);
+        // Update the slider if it exists
+        const scaleInput = document.getElementById('objectScaleInput');
+        const scaleValue = document.getElementById('objectScaleValue');
+        if (scaleInput && scaleValue) {
+            scaleInput.value = submapState.selectedObject.scale;
+            scaleValue.textContent = submapState.selectedObject.scale.toFixed(1) + 'x';
+        }
+        drawSubmap();
+        return;
+    }
+    
+    // Otherwise zoom the canvas
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     submapState.zoom = Math.max(0.5, Math.min(3, submapState.zoom + delta));
     document.getElementById('submapZoom').value = submapState.zoom;
@@ -1257,7 +1349,9 @@ const saveSubmap = async () => {
             isFree: obj.isFree || false,
             gridType: obj.gridType || 'square', // Save object's grid type
             placementLayer: getObjectPlacementLayer(obj),
-            rotation: obj.rotation || 0 // Save object rotation
+            rotation: obj.rotation || 0, // Save object rotation
+            scale: obj.scale || 1.0, // Save object scale
+            zIndex: obj.zIndex || 1 // Save object zIndex
         }))
     };
     
