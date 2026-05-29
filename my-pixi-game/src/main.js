@@ -40,6 +40,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
     const digBaseDir = '/assets/A_cute_chibi_anime_girl/animations/dig/';
     const seedingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/seeding/';
+    const sleepBaseDir = '/assets/A_cute_chibi_anime_girl/animations/sleep/';
 
     // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
@@ -47,6 +48,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const attackAnimations = {};
     const digAnimations = {};
     const seedingAnimations = {};
+    const sleepAnimations = {};
     const explosionFrames = [];
 
     const loadingScreen = document.getElementById('loading-screen');
@@ -86,6 +88,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         for (let i = 0; i < 6; i++) assetsToLoad.push(`${attackBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${digBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${seedingBaseDir}${dir}/frame_00${i}.png`);
+        for (let i = 0; i < 9; i++) assetsToLoad.push(`${sleepBaseDir}${dir}/frame_00${i}.png`);
     });
     
     // Tải texture từ worldmap hoặc fallback to old config
@@ -181,6 +184,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         const aFrames = [];
         const dFrames = [];
         const sFrames = [];
+        const slFrames = [];
         for (let i = 0; i < 6; i++) {
             wFrames.push(Assets.get(`${walkBaseDir}${dir}/frame_00${i}.png`));
         }
@@ -196,11 +200,15 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         for (let i = 0; i < 9; i++) {
             sFrames.push(Assets.get(`${seedingBaseDir}${dir}/frame_00${i}.png`));
         }
+        for (let i = 0; i < 9; i++) {
+            slFrames.push(Assets.get(`${sleepBaseDir}${dir}/frame_00${i}.png`));
+        }
         walkAnimations[dir] = wFrames;
         idleAnimations[dir] = iFrames;
         attackAnimations[dir] = aFrames;
         digAnimations[dir] = dFrames;
         seedingAnimations[dir] = sFrames;
+        sleepAnimations[dir] = slFrames;
     });
 
     // Load explosion frames
@@ -525,6 +533,35 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         if (e.code === 'KeyH') toggleDebug();
     });
     debugBtn.onclick = toggleDebug;
+
+    // Nút Tele Neural
+    const teleNeuralBtn = document.getElementById('tele-neural-btn');
+    if (teleNeuralBtn) {
+        teleNeuralBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${SOCKET_URL}/tele-neural-to-player`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        x: characterContainer.x,
+                        y: characterContainer.y,
+                        dir: currentDir
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log(`⚡ Teleported Neural đến vị trí của bạn (${data.x}, ${data.y})`);
+                    alert(`⚡ Đã tele Neural đến vị trí của bạn!`);
+                } else {
+                    console.error("❌ Tele thất bại:", data.error);
+                    alert("❌ Tele thất bại!");
+                }
+            } catch (err) {
+                console.error("❌ Lỗi tele Neural:", err);
+                alert("❌ Lỗi kết nối server!");
+            }
+        });
+    }
 
     // Hàm kiểm tra va chạm Pixel-Perfect
     const checkCollision = (char, obj) => {
@@ -925,9 +962,9 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             const response = await fetch(`${SOCKET_URL}/get-crop-types`);
             const data = await response.json();
             cropTypes = data.cropTypes || [];
-            
+
             console.log(`📦 Loaded ${cropTypes.length} crop types`);
-            
+
             // Tự động chọn loại cây đầu tiên
             if (cropTypes.length > 0) {
                 selectedCropType = cropTypes[0];
@@ -1105,6 +1142,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     let isMoving = false;
     let isAttacking = false; // Khóa di chuyển khi đang tấn công
     let isDigging = false; // Khóa di chuyển khi đang đào đất
+    let isSleeping = false; // Khóa di chuyển khi đang ngủ
     let isSkillOnCooldown = false; // Đang trong cooldown
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
@@ -1436,43 +1474,40 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
     // --- XỬ LÝ NÚT TẠO NHÂN VẬT ---
     const gameIdInput = document.getElementById('game-id');
+    const accessCodeInput = document.getElementById('access-code');
     const createBtn = document.getElementById('create-btn');
 
-    createBtn.addEventListener('click', async () => {
-        const username = gameIdInput.value.trim();
-        
-        if (!username) {
-            alert("Vui lòng nhập username!");
-            return;
-        }
-
-        createBtn.disabled = true;
-        createBtn.textContent = "Đang kiểm tra...";
-
+    // Auto-login function
+    async function autoLogin(username, accessCode = '') {
         try {
-            // Check if account exists
+            // Check if account exists with access code
             const checkResponse = await fetch(`${SOCKET_URL}/check-account`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
+                body: JSON.stringify({ username, accessCode })
             });
             const checkData = await checkResponse.json();
 
             if (!checkData.exists) {
-                // Create new account
-                createBtn.textContent = "Đang tạo tài khoản...";
+                // Create new account with access code
                 const createResponse = await fetch(`${SOCKET_URL}/create-account`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
+                    body: JSON.stringify({ username, accessCode })
                 });
                 const createData = await createResponse.json();
 
                 if (!createData.success) {
-                    alert("Lỗi tạo tài khoản!");
-                    createBtn.disabled = false;
-                    createBtn.textContent = "Tạo nhân vật";
-                    return;
+                    console.error("❌ Lỗi tạo tài khoản!");
+                    return false;
+                }
+            }
+
+            // Log auth level if provided
+            if (checkData.authLevel) {
+                console.log(`🔐 Auth Level: ${checkData.authLevel}`);
+                if (checkData.authLevel === 'SUPREME_ADMIN') {
+                    console.log(`👑 Chào mừng PoPi! PNeural đã sẵn sàng phục vụ.`);
                 }
             }
 
@@ -1483,55 +1518,145 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 characterContainer.y = Number(checkData.playerState.y) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.y : 500);
                 currentDir = checkData.playerState.dir || 'south';
                 console.log(`✅ Loaded saved position: (${characterContainer.x}, ${characterContainer.y})`);
-                
-                character.textures = idleAnimations[currentDir];
-                character.play();
-                
-                // Load stats from saved state
-                playerStats.hp = Number(checkData.playerState.hp) || 100;
-                playerStats.maxHp = Number(checkData.playerState.max_hp) || 100;
-                playerStats.mp = Number(checkData.playerState.mp) || 50;
-                playerStats.maxMp = Number(checkData.playerState.max_mp) || 50;
-                playerStats.moveSpeed = Number(checkData.playerState.move_speed) || 4;
-            } else if (worldmapData && worldmapData.spawnPoint) {
-                // New player - use spawn point
-                characterContainer.x = worldmapData.spawnPoint.x;
-                characterContainer.y = worldmapData.spawnPoint.y;
-                console.log(`✅ New player spawned at: (${characterContainer.x}, ${characterContainer.y})`);
-            }
-            nameTag.text = myGameId;
-            updateStatsUI(); // Cập nhật UI HP/MP
-            await loadPlayerSkills(myGameId); // Load skills
-            
-            uiOverlay.style.display = 'none'; // Ẩn UI
-            characterContainer.visible = true; // Hiện nhân vật
-            isGameStarted = true;
-
-            // Hiển thị UI chọn cây trồng
-            const cropPanel = document.getElementById('crop-selection-panel');
-            if (cropPanel) {
-                cropPanel.style.display = 'block';
             }
 
-            console.log("Game started as:", myGameId);
+            // Hide UI overlay
+            document.getElementById('ui-overlay').style.display = 'none';
 
-            // Báo cho server biết mình tham gia CHỈ KHI nhấn nút
-            socket.emit("newPlayer", {
-                x: characterContainer.x,
-                y: characterContainer.y,
-                dir: currentDir,
-                isMoving: false,
-                isAttacking: false,
-                name: myGameId,
-                stats: playerStats
-            });
+            // Start game
+            startGame();
+            return true;
         } catch (err) {
-            console.error("Lỗi kết nối server:", err);
-            alert("Lỗi kết nối server!");
-            createBtn.disabled = false;
-            createBtn.textContent = "Tạo nhân vật";
+            console.error("❌ Auto-login error:", err);
+            return false;
         }
-    });
+    }
+
+    // Check for auto-login data
+    if (window.autoLoginData && window.autoLoginData.autoLogin) {
+        console.log("🤖 Auto-login detected for:", window.autoLoginData.username);
+        const { username, authLevel } = window.autoLoginData;
+        const pNeuralCode = 'POPISUPREME2026';
+
+        // Auto-login with API call to ensure account exists
+        (async () => {
+            try {
+                // Check if account exists with access code
+                const checkResponse = await fetch(`${SOCKET_URL}/check-account`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, accessCode: pNeuralCode })
+                });
+                const checkData = await checkResponse.json();
+
+                if (!checkData.exists) {
+                    // Create new account with access code
+                    console.log("🤖 Creating Neural account...");
+                    const createResponse = await fetch(`${SOCKET_URL}/create-account`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, accessCode: pNeuralCode })
+                    });
+                    const createData = await createResponse.json();
+
+                    if (!createData.success) {
+                        console.error("❌ Lỗi tạo tài khoản!");
+                        return;
+                    }
+                }
+
+                // Log auth level
+                if (checkData.authLevel === 'SUPREME_ADMIN') {
+                    console.log(`👑 Chào mừng PoPi! PNeural đã sẵn sàng phục vụ.`);
+                }
+
+                // Set game ID
+                myGameId = username;
+
+                // Load position
+                if (checkData.playerState) {
+                    characterContainer.x = Number(checkData.playerState.x) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.x : 500);
+                    characterContainer.y = Number(checkData.playerState.y) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.y : 500);
+                    currentDir = checkData.playerState.dir || 'south';
+                    console.log(`✅ Loaded saved position: (${characterContainer.x}, ${characterContainer.y})`);
+                }
+
+                // Hide UI overlay and start game
+                document.getElementById('ui-overlay').style.display = 'none';
+                startGame();
+            } catch (err) {
+                console.error("❌ Auto-login error:", err);
+            }
+        })();
+    } else {
+        // Normal login flow
+        createBtn.addEventListener('click', async () => {
+            const username = gameIdInput.value.trim();
+            const accessCode = accessCodeInput.value.trim();
+
+            if (!username) {
+                alert("Vui lòng nhập username!");
+                return;
+            }
+
+            createBtn.disabled = true;
+            createBtn.textContent = "Đang kiểm tra...";
+
+            const success = await autoLogin(username, accessCode);
+
+            if (!success) {
+                createBtn.disabled = false;
+                createBtn.textContent = "Tạo nhân vật";
+            }
+        });
+    }
+
+    // Function to start game
+    function startGame() {
+        character.textures = idleAnimations[currentDir];
+        character.play();
+
+        // Load stats from saved state
+        if (window.autoLoginData && window.autoLoginData.playerState) {
+            const playerState = window.autoLoginData.playerState;
+            playerStats.hp = Number(playerState.hp) || 100;
+            playerStats.maxHp = Number(playerState.max_hp) || 100;
+            playerStats.mp = Number(playerState.mp) || 50;
+            playerStats.maxMp = Number(playerState.max_mp) || 50;
+            playerStats.moveSpeed = Number(playerState.move_speed) || 4;
+        } else if (worldmapData && worldmapData.spawnPoint) {
+            // New player - use spawn point
+            characterContainer.x = worldmapData.spawnPoint.x;
+            characterContainer.y = worldmapData.spawnPoint.y;
+            console.log(`✅ New player spawned at: (${characterContainer.x}, ${characterContainer.y})`);
+        }
+        nameTag.text = myGameId;
+        updateStatsUI(); // Cập nhật UI HP/MP
+        loadPlayerSkills(myGameId); // Load skills
+
+        uiOverlay.style.display = 'none'; // Ẩn UI
+        characterContainer.visible = true; // Hiện nhân vật
+        isGameStarted = true;
+
+        // Hiển thị UI chọn cây trồng
+        const cropPanel = document.getElementById('crop-selection-panel');
+        if (cropPanel) {
+            cropPanel.style.display = 'block';
+        }
+
+        console.log("Game started as:", myGameId);
+
+        // Báo cho server biết mình tham gia
+        socket.emit("newPlayer", {
+            x: characterContainer.x,
+            y: characterContainer.y,
+            dir: currentDir,
+            isMoving: false,
+            isAttacking: false,
+            name: myGameId,
+            stats: playerStats
+        });
+    }
 
     // Hàm tạo nhân vật cho người chơi khác
     const createOtherPlayer = (id, data) => {
@@ -1547,20 +1672,20 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
         // Nhãn tên người chơi khác
         const tag = new Text({ text: data.name || id, style: nameStyle });
-        tag.anchor.set(0.5, 1);
-        tag.y = -60;
+        tag.anchor.set(0.5, 0);
+        tag.y = -50;
         container.addChild(tag);
 
         container.x = data.x;
         container.y = data.y;
-        container.scale.set(0.7);
-        world.addChild(container); 
-        
-        otherPlayers[id] = { 
-            container, 
-            sprite, 
+        container.scale.set(0.7); // Scale giống như main character
+
+        world.addChild(container);
+
+        otherPlayers[id] = {
+            container,
+            sprite,
             tag,
-            isAttacking: false, 
             currentDir: data.dir || 'south',
             currentIsMoving: data.isMoving || false
         };
@@ -1871,6 +1996,87 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 cropName: selectedCropType.display_name
             });
         }
+
+        // Xử lý phím F - Kỹ năng Sleep (Ngủ)
+        if (e.code === 'KeyF' && isGameStarted && !isDigging && !isAttacking && !isSeeding && !isSleeping) {
+            console.log('🔍 [SLEEP DEBUG] Phím F được nhấn');
+            
+            // Tìm skill Sleep
+            const sleepSkill = playerSkills.find(s => s.skill_type === 'sleep');
+            console.log('🔍 [SLEEP DEBUG] Sleep skill:', sleepSkill);
+            
+            if (!sleepSkill) {
+                console.warn("⚠️ Bạn chưa có kỹ năng Sleep!");
+                return;
+            }
+
+            const cooldownData = skillCooldowns[sleepSkill.skill_id];
+            console.log('🔍 [SLEEP DEBUG] Cooldown data:', cooldownData);
+            
+            const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
+
+            // Kiểm tra cooldown
+            if (remaining > 0) {
+                console.warn(`⏱️ Kỹ năng Sleep đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                return;
+            }
+
+            // Kiểm tra MP (sleep không tốn MP nhưng vẫn check)
+            if (playerStats.mp < sleepSkill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${sleepSkill.mp_cost}, hiện có ${playerStats.mp}`);
+                return;
+            }
+
+            // Trừ MP (nếu có)
+            if (sleepSkill.mp_cost > 0) {
+                playerStats.mp -= sleepSkill.mp_cost;
+                console.log(`✅ Sử dụng Sleep! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+            } else {
+                console.log(`✅ Sử dụng Sleep! (Không tốn MP)`);
+            }
+
+            // Ghi nhận sử dụng skill
+            fetch(`${SOCKET_URL}/use-skill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myGameId, skillId: sleepSkill.skill_id })
+            }).catch(err => console.error("❌ Lỗi record skill:", err));
+
+            // Reset cooldown
+            skillCooldowns[sleepSkill.skill_id].elapsed = 0;
+            console.log('🔍 [SLEEP DEBUG] Cooldown reset');
+
+            // Trigger animation sleep
+            isSleeping = true;
+            isMoving = false;
+            
+            console.log('🔍 [SLEEP DEBUG] Current direction:', currentDir);
+            console.log('🔍 [SLEEP DEBUG] Sleep animations:', sleepAnimations);
+            console.log('🔍 [SLEEP DEBUG] Sleep animation for direction:', sleepAnimations[currentDir]);
+            
+            character.textures = sleepAnimations[currentDir];
+            character.animationSpeed = 0.2;
+            character.loop = false;
+            character.gotoAndPlay(0);
+            
+            console.log('🔍 [SLEEP DEBUG] Animation started');
+            
+            character.onComplete = () => {
+                console.log('🔍 [SLEEP DEBUG] Animation completed');
+                isSleeping = false;
+                character.textures = idleAnimations[currentDir];
+                character.animationSpeed = 0.05;
+                character.loop = true;
+                character.play();
+            };
+
+            // Gửi event sleep cho người chơi khác
+            socket.emit("playerSleep", {
+                x: characterContainer.x,
+                y: characterContainer.y,
+                dir: currentDir
+            });
+        }
         
         // Test HP/MP - Phím 1 để giảm HP, Phím 2 để tăng HP, Phím 3 để giảm MP, Phím 4 để tăng MP
         if (isGameStarted) {
@@ -1904,8 +2110,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     app.ticker.add((ticker) => {
         if (!isGameStarted) return; // Chỉ chạy khi đã nhấn nút
 
-        // Nếu đang tấn công, đang đào, hoặc đang trồng cây thì không xử lý di chuyển
-        if (isAttacking || isDigging || isSeeding) {
+        // Nếu đang tấn công, đang đào, đang trồng cây, hoặc đang ngủ thì không xử lý di chuyển
+        if (isAttacking || isDigging || isSeeding || isSleeping) {
             if (isMoving) {
                 isMoving = false;
                 // Gửi update để người chơi khác thấy mình đứng yên

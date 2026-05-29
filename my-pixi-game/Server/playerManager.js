@@ -1,4 +1,4 @@
-import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop, saveObjectColliderData, getObjectColliderData, getAllObjectColliderData } from './database.js';
+import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop, saveObjectColliderData, getObjectColliderData, getAllObjectColliderData, verifyAccessCode, updateAccountAuthLevel, getAccountAuthLevel, createAccessCode, getAllAccessCodes, deactivateAccessCode, getAllNPCs, createNPC, updateNPCPosition } from './database.js';
 
 // Check if account exists
 export function checkAccount(username) {
@@ -109,4 +109,42 @@ export function getObjectColliderDataByType(objectTypeId) {
 
 export function getAllObjectColliderDataByType() {
   return getAllObjectColliderData();
+}
+
+// --- PNeural Authentication Functions ---
+export function verifyAccessCodeLogin(code) {
+  return verifyAccessCode(code);
+}
+
+export function setAccountAuthLevel(username, authLevel) {
+  return updateAccountAuthLevel(username, authLevel);
+}
+
+export function getUserAuthLevel(username) {
+  return getAccountAuthLevel(username);
+}
+
+export function generateAccessCode(code, username, authLevel) {
+  return createAccessCode(code, username, authLevel);
+}
+
+export function listAccessCodes() {
+  return getAllAccessCodes();
+}
+
+export function revokeAccessCode(code) {
+  return deactivateAccessCode(code);
+}
+
+// --- NPC Management Functions ---
+export function getNPCs() {
+  return getAllNPCs();
+}
+
+export function addNPC(name, x, y, dir, spritePath) {
+  return createNPC(name, x, y, dir, spritePath);
+}
+
+export function moveNPC(name, x, y, dir) {
+  return updateNPCPosition(name, x, y, dir);
 }

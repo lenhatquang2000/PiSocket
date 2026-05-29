@@ -4,14 +4,131 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { initDatabase } from './Server/database.js';
-import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType } from './Server/playerManager.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType, verifyAccessCodeLogin, setAccountAuthLevel, getUserAuthLevel, generateAccessCode, listAccessCodes, revokeAccessCode, getNPCs, addNPC, moveNPC } from './Server/playerManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const players = {};
 
+// PNeural AI Bot - Virtual Player
+const pNeuralBot = {
+  username: 'PNeural',
+  x: 500,
+  y: 500,
+  dir: 'south',
+  isMoving: false,
+  isAttacking: false,
+  stats: { hp: 100, maxHp: 100, mp: 50, maxMp: 50, moveSpeed: 4 },
+  isWalking: false,
+  targetX: 500,
+  targetY: 500
+};
+
+// PNeural AI Walk Around Logic
+const pNeuralWalkAround = () => {
+  if (pNeuralBot.isWalking) return;
+
+  const currentX = pNeuralBot.x;
+  const currentY = pNeuralBot.y;
+
+  // Random tọa độ trong phạm vi 100 pixel
+  const randomOffsetX = (Math.random() - 0.5) * 200;
+  const randomOffsetY = (Math.random() - 0.5) * 200;
+
+  pNeuralBot.targetX = currentX + randomOffsetX;
+  pNeuralBot.targetY = currentY + randomOffsetY;
+
+  // Xác định hướng đi dựa trên angle (8 hướng)
+  const angle = Math.atan2(randomOffsetY, randomOffsetX);
+  const angleDeg = angle * (180 / Math.PI);
+
+  if (angleDeg >= -22.5 && angleDeg < 22.5) pNeuralBot.dir = 'east';
+  else if (angleDeg >= 22.5 && angleDeg < 67.5) pNeuralBot.dir = 'south-east';
+  else if (angleDeg >= 67.5 && angleDeg < 112.5) pNeuralBot.dir = 'south';
+  else if (angleDeg >= 112.5 && angleDeg < 157.5) pNeuralBot.dir = 'south-west';
+  else if (angleDeg >= 157.5 || angleDeg < -157.5) pNeuralBot.dir = 'west';
+  else if (angleDeg >= -157.5 && angleDeg < -112.5) pNeuralBot.dir = 'north-west';
+  else if (angleDeg >= -112.5 && angleDeg < -67.5) pNeuralBot.dir = 'north';
+  else if (angleDeg >= -67.5 && angleDeg < -22.5) pNeuralBot.dir = 'north-east';
+
+  pNeuralBot.isWalking = true;
+  pNeuralBot.isMoving = true;
+
+  console.log(`🤖 PNeural walking to (${pNeuralBot.targetX.toFixed(1)}, ${pNeuralBot.targetY.toFixed(1)}) dir: ${pNeuralBot.dir}`);
+
+  // Di chuyển từng frame
+  const moveStep = () => {
+    const dx = pNeuralBot.targetX - pNeuralBot.x;
+    const dy = pNeuralBot.targetY - pNeuralBot.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < 1) {
+      // Đã đến đích
+      pNeuralBot.isWalking = false;
+      pNeuralBot.isMoving = false;
+      pNeuralBot.x = pNeuralBot.targetX;
+      pNeuralBot.y = pNeuralBot.targetY;
+
+      // Lưu position vào DB
+      saveCurrentPlayerState(pNeuralBot.username, pNeuralBot.x, pNeuralBot.y, pNeuralBot.dir, pNeuralBot.stats.hp, pNeuralBot.stats.mp);
+
+      // Emit final position với isMoving = false để client chuyển về idle animation
+      io.emit('playerMoved', {
+        id: 'pneural-bot',
+        x: pNeuralBot.x,
+        y: pNeuralBot.y,
+        dir: pNeuralBot.dir,
+        name: pNeuralBot.username,
+        isMoving: false
+      });
+
+      console.log(`🤖 PNeural arrived at (${pNeuralBot.x.toFixed(1)}, ${pNeuralBot.y.toFixed(1)})`);
+    } else {
+      // Tiếp tục di chuyển
+      const speed = 2;
+      pNeuralBot.x += (dx / distance) * speed;
+      pNeuralBot.y += (dy / distance) * speed;
+
+      // Emit position update cho tất cả clients
+      io.emit('playerMoved', {
+        id: 'pneural-bot',
+        x: pNeuralBot.x,
+        y: pNeuralBot.y,
+        dir: pNeuralBot.dir,
+        name: pNeuralBot.username,
+        isMoving: true
+      });
+
+      setTimeout(moveStep, 16); // ~60fps
+    }
+  };
+
+  moveStep();
+};
+
+// Load PNeural state từ DB khi server khởi động
+const loadPNeuralState = () => {
+  const state = getSavedPlayerState('PNeural');
+  if (state) {
+    pNeuralBot.x = state.x || 500;
+    pNeuralBot.y = state.y || 500;
+    pNeuralBot.dir = state.dir || 'south';
+    pNeuralBot.stats.hp = state.hp || 100;
+    pNeuralBot.stats.maxHp = state.max_hp || 100;
+    pNeuralBot.stats.mp = state.mp || 50;
+    pNeuralBot.stats.maxMp = state.max_mp || 50;
+    console.log(`✅ Loaded PNeural state: (${pNeuralBot.x}, ${pNeuralBot.y})`);
+  }
+};
+
 await initDatabase();
+loadPNeuralState();
+
+// Bắt đầu AI Walk Around mỗi 5s
+setInterval(() => {
+  pNeuralWalkAround();
+}, 5000);
 
 const server = http.createServer((req, res) => {
   // Log mọi request để debug
@@ -38,7 +155,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
       try {
-        const { username } = JSON.parse(body);
+        const { username, accessCode } = JSON.parse(body);
         const validation = validateUsername(username);
         if (!validation.valid) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -49,8 +166,28 @@ const server = http.createServer((req, res) => {
         const normalizedUsername = username.trim();
         const exists = checkAccount(normalizedUsername);
         const playerState = exists ? getSavedPlayerState(normalizedUsername) : null;
+
+        // Nếu có access code, verify và set auth level
+        let authLevel = 'user';
+        if (accessCode) {
+          const verification = verifyAccessCodeLogin(accessCode);
+          if (verification) {
+            authLevel = verification.auth_level;
+            // Update account auth level nếu account đã tồn tại
+            if (exists) {
+              setAccountAuthLevel(normalizedUsername, authLevel);
+            }
+            console.log(`✅ Access code verified for ${normalizedUsername}: ${authLevel}`);
+          } else {
+            console.log(`⚠️ Invalid access code for ${normalizedUsername}`);
+          }
+        } else if (exists) {
+          // Nếu không có access code, lấy auth level hiện tại
+          authLevel = getUserAuthLevel(normalizedUsername);
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ exists, playerState }));
+        res.end(JSON.stringify({ exists, playerState, authLevel }));
       } catch (err) {
         console.error("❌ Lỗi check account:", err);
         res.writeHead(500);
@@ -64,7 +201,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
       try {
-        const { username } = JSON.parse(body);
+        const { username, accessCode } = JSON.parse(body);
         const validation = validateUsername(username);
         if (!validation.valid) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -72,9 +209,22 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        const success = createNewAccount(username.trim());
+        const normalizedUsername = username.trim();
+        const success = createNewAccount(normalizedUsername);
+
+        // Nếu có access code hợp lệ, set auth level cho account mới
+        let authLevel = 'user';
+        if (success && accessCode) {
+          const verification = verifyAccessCodeLogin(accessCode);
+          if (verification) {
+            authLevel = verification.auth_level;
+            setAccountAuthLevel(normalizedUsername, authLevel);
+            console.log(`✅ Account ${normalizedUsername} created with auth level: ${authLevel}`);
+          }
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success }));
+        res.end(JSON.stringify({ success, authLevel }));
       } catch (err) {
         console.error("❌ Lỗi create account:", err);
         res.writeHead(500);
@@ -554,18 +704,18 @@ const server = http.createServer((req, res) => {
         .filter(file => file.startsWith('worldmap_') && file.endsWith('.json'))
         .sort()
         .reverse(); // Lấy file mới nhất
-      
+
       if (worldmapFiles.length === 0) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'No worldmap found' }));
         return;
       }
-      
+
       const latestFile = worldmapFiles[0];
       const filePath = path.join(dirPath, latestFile);
       const content = fs.readFileSync(filePath, 'utf8');
       const worldmapData = JSON.parse(content);
-      
+
       console.log(`✅ Loaded worldmap: ${latestFile}`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ worldmap: worldmapData, fileName: latestFile }));
@@ -574,6 +724,156 @@ const server = http.createServer((req, res) => {
       res.writeHead(500);
       res.end(JSON.stringify({ error: err.message }));
     }
+  }
+  // Auto-login endpoint cho PNeural - username "PNeural" - serve HTML
+  else if (req.method === 'GET' && req.url === '/auto-login-neural') {
+    try {
+      const username = 'PNeural';
+      const pNeuralCode = 'POPISUPREME2026';
+
+      // Check if account exists
+      const exists = checkAccount(username);
+      let playerState = null;
+      let authLevel = 'user';
+
+      if (!exists) {
+        // Create new account
+        const success = createNewAccount(username);
+        if (success) {
+          // Set auth level với access code
+          const verification = verifyAccessCodeLogin(pNeuralCode);
+          if (verification) {
+            authLevel = verification.auth_level;
+            setAccountAuthLevel(username, authLevel);
+            console.log(`✅ Auto-created PNeural account with auth level: ${authLevel}`);
+          }
+        }
+      } else {
+        // Account exists, get state and auth level
+        playerState = getSavedPlayerState(username);
+        authLevel = getUserAuthLevel(username);
+        // Update auth level nếu chưa có
+        if (authLevel === 'user') {
+          const verification = verifyAccessCodeLogin(pNeuralCode);
+          if (verification) {
+            authLevel = verification.auth_level;
+            setAccountAuthLevel(username, authLevel);
+            console.log(`✅ Updated PNeural auth level to: ${authLevel}`);
+          }
+        }
+      }
+
+      if (!playerState && exists) {
+        playerState = getSavedPlayerState(username);
+      }
+
+      console.log(`🤖 PNeural auto-login: ${username} (${authLevel})`);
+
+      // Serve HTML với auto-login script
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>my-pixi-game - PNeural Auto-Login</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // Auto-login data
+      window.autoLoginData = {
+        username: '${username}',
+        authLevel: '${authLevel}',
+        playerState: ${JSON.stringify(playerState)},
+        autoLogin: true
+      };
+      // Load main game
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = '/src/main.js';
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
+      `;
+
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(htmlContent);
+    } catch (err) {
+      console.error("❌ Lỗi auto-login neural:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Get all NPCs
+  else if (req.method === 'GET' && req.url === '/get-npcs') {
+    try {
+      const npcs = getNPCs();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ npcs }));
+    } catch (err) {
+      console.error("❌ Lỗi get NPCs:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Summon Neural to specific position
+  else if (req.method === 'POST' && req.url === '/summon-neural') {
+    try {
+      const targetX = 2115;
+      const targetY = 66;
+      const success = moveNPC('PNeural', targetX, targetY, 'south');
+      if (success) {
+        console.log(`✅ Summoned PNeural to (${targetX}, ${targetY})`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, x: targetX, y: targetY }));
+      } else {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Failed to move NPC' }));
+      }
+    } catch (err) {
+      console.error("❌ Lỗi summon neural:", err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+  // Tele Neural to player position
+  else if (req.method === 'POST' && req.url === '/tele-neural-to-player') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { x, y, dir } = JSON.parse(body);
+        pNeuralBot.x = x;
+        pNeuralBot.y = y;
+        pNeuralBot.dir = dir || 'south';
+        pNeuralBot.isWalking = false;
+        pNeuralBot.isMoving = false;
+
+        // Lưu vào DB
+        saveCurrentPlayerState(pNeuralBot.username, pNeuralBot.x, pNeuralBot.y, pNeuralBot.dir, pNeuralBot.stats.hp, pNeuralBot.stats.mp);
+
+        // Emit cho tất cả clients
+        io.emit('playerMoved', {
+          id: 'pneural-bot',
+          x: pNeuralBot.x,
+          y: pNeuralBot.y,
+          dir: pNeuralBot.dir,
+          name: pNeuralBot.username,
+          isMoving: false
+        });
+
+        console.log(`⚡ Teleported PNeural to (${x}, ${y})`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, x, y }));
+      } catch (err) {
+        console.error("❌ Lỗi tele neural:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
   }
   else {
     res.writeHead(404);
@@ -603,6 +903,18 @@ io.on("connection", (socket) => {
         moveSpeed: 4
       }
     };
+
+    // Gửi PNeural bot cho client sau khi họ đã join game
+    socket.emit('newPlayer', {
+      id: 'pneural-bot',
+      x: pNeuralBot.x,
+      y: pNeuralBot.y,
+      dir: pNeuralBot.dir,
+      isMoving: pNeuralBot.isMoving,
+      isAttacking: pNeuralBot.isAttacking,
+      name: pNeuralBot.username,
+      stats: pNeuralBot.stats
+    });
     
     // 2. Gửi danh sách TẤT CẢ người chơi hiện tại cho người chơi MỚI này
     socket.emit("currentPlayers", players);

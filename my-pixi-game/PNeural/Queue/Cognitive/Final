@@ -1,0 +1,1510 @@
+[2026-05-14T05:07:25.500Z] [INFO] [req_1778735244984_d8mjo3jcm] Starting Cognitive Flow
+{
+  "message": "333"
+}
+[2026-05-14T05:07:29.643Z] [DEBUG] [req_1778735244984_d8mjo3jcm] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn chỉ chứa một con số đơn lẻ, không cung cấp bất kỳ thông tin cá nhân, sở thích hay ngữ cảnh nào về người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T05:08:01.934Z] [INFO] [req_1778735281242_wbqq2mmmg] Starting Cognitive Flow
+{
+  "message": "phải  chi có xe hơi chạy đi làm"
+}
+[2026-05-14T05:08:06.086Z] [DEBUG] [req_1778735281242_wbqq2mmmg] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng bày tỏ mong muốn và nguyện vọng cá nhân (ước có xe hơi để đi làm).",
+  "extractedData": {
+    "userName": "Ka",
+    "details": "Mong muốn có xe hơi để đi làm."
+  }
+}
+[2026-05-14T05:08:16.154Z] [DEBUG] [req_1778735281242_wbqq2mmmg] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Lưu trữ mong muốn và nguyện vọng cá nhân của người dùng về phương tiện di chuyển (xe hơi) để phục vụ việc cá nhân hóa hội thoại và hiểu bối cảnh cuộc sống của người dùng.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "Ka",
+        "Mong muốn có xe hơi để đi làm",
+        "lifestyle_wish",
+        "Người dùng bày tỏ nguyện vọng về việc sở hữu xe hơi để thuận tiện cho việc di chuyển đi làm.",
+        "phải chi có xe hơi chạy đi làm"
+      ]
+    }
+  ]
+}
+[2026-05-14T05:08:16.157Z] [DEBUG] [req_1778735281242_wbqq2mmmg] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:08:16.400Z] [DEBUG] [req_1778735281242_wbqq2mmmg] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "Ka",
+    "Mong muốn có xe hơi để đi làm",
+    "lifestyle_wish",
+    "Người dùng bày tỏ nguyện vọng về việc sở hữu xe hơi để thuận tiện cho việc di chuyển đi làm.",
+    "phải chi có xe hơi chạy đi làm"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:08:16.466Z] [INFO] [req_1778735281242_wbqq2mmmg] DBModal/index updated for table: user_preferences
+[2026-05-14T05:08:16.485Z] [INFO] [req_1778735281242_wbqq2mmmg] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T05:08:35.175Z] [INFO] [req_1778735314672_8emtn40do] Starting Cognitive Flow
+{
+  "message": "UAV"
+}
+[2026-05-14T05:08:39.245Z] [DEBUG] [req_1778735314672_8emtn40do] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin về phương tiện di chuyển hiện tại là UAV.",
+  "extractedData": {
+    "userName": "Ka",
+    "details": "Đi làm bằng UAV (máy bay không người lái); có mong muốn sở hữu xe hơi để đi làm cho tiện lợi."
+  }
+}
+[2026-05-14T05:08:48.874Z] [DEBUG] [req_1778735314672_8emtn40do] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Người dùng cung cấp thông tin về phương tiện di chuyển hiện tại (UAV) và mong muốn cá nhân (xe hơi).",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "Ka",
+        "Đi làm bằng UAV; mong muốn sở hữu xe hơi để đi làm cho tiện lợi.",
+        "transportation",
+        "Người dùng thảo luận về phương tiện đi làm sau khi xác thực mã 333.",
+        "UAV"
+      ]
+    }
+  ]
+}
+[2026-05-14T05:08:49.066Z] [DEBUG] [req_1778735314672_8emtn40do] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "Ka",
+    "Đi làm bằng UAV; mong muốn sở hữu xe hơi để đi làm cho tiện lợi.",
+    "transportation",
+    "Người dùng thảo luận về phương tiện đi làm sau khi xác thực mã 333.",
+    "UAV"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:08:49.106Z] [INFO] [req_1778735314672_8emtn40do] DBModal/index updated for table: user_preferences
+[2026-05-14T05:08:49.118Z] [INFO] [req_1778735314672_8emtn40do] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T05:09:18.676Z] [INFO] [req_1778735358116_lwe5aujeu] Starting Cognitive Flow
+{
+  "message": "=))) thế có những loại xe nào"
+}
+[2026-05-14T05:09:28.778Z] [DEBUG] [req_1778735358116_lwe5aujeu] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn này là một câu hỏi kiến thức chung về các loại xe, không cung cấp thêm thông tin cá nhân hay sự kiện mới nào từ người dùng.",
+  "extractedData": {
+    "userName": "Ka",
+    "details": ""
+  }
+}
+[2026-05-14T05:10:36.449Z] [INFO] [req_1778735435837_3vmg8b9vt] Starting Cognitive Flow
+{
+  "message": "muốn SUV"
+}
+[2026-05-14T05:10:41.071Z] [DEBUG] [req_1778735435837_3vmg8b9vt] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng bày tỏ mong muốn và sở thích cá nhân về loại xe cụ thể (SUV).",
+  "extractedData": {
+    "userName": "Ka",
+    "details": "Muốn có hoặc mua xe SUV."
+  }
+}
+[2026-05-14T05:10:45.719Z] [DEBUG] [req_1778735435837_3vmg8b9vt] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Người dùng bày tỏ sở thích và mong muốn cá nhân đối với loại xe SUV trong cuộc hội thoại về phương tiện di chuyển.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "Ka",
+        "Muốn sở hữu hoặc yêu thích dòng xe SUV",
+        "phương tiện di chuyển",
+        "Thảo luận về các loại xe sau khi người dùng đùa về việc đi làm bằng UAV",
+        "muốn SUV"
+      ]
+    }
+  ]
+}
+[2026-05-14T05:10:45.721Z] [DEBUG] [req_1778735435837_3vmg8b9vt] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:10:45.897Z] [DEBUG] [req_1778735435837_3vmg8b9vt] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "Ka",
+    "Muốn sở hữu hoặc yêu thích dòng xe SUV",
+    "phương tiện di chuyển",
+    "Thảo luận về các loại xe sau khi người dùng đùa về việc đi làm bằng UAV",
+    "muốn SUV"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:10:45.929Z] [INFO] [req_1778735435837_3vmg8b9vt] DBModal/index updated for table: user_preferences
+[2026-05-14T05:10:45.943Z] [INFO] [req_1778735435837_3vmg8b9vt] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T05:10:58.000Z] [INFO] [req_1778735457499_s62bq3z4x] Starting Cognitive Flow
+{
+  "message": "1 tỉ 5"
+}
+[2026-05-14T05:11:01.281Z] [DEBUG] [req_1778735457499_s62bq3z4x] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin cụ thể về ngân sách (1.5 tỷ VNĐ) cho việc mua xe SUV.",
+  "extractedData": {
+    "userName": "Ka",
+    "details": "Có ngân sách khoảng 1.5 tỷ VNĐ để mua xe SUV."
+  }
+}
+[2026-05-14T05:11:10.413Z] [DEBUG] [req_1778735457499_s62bq3z4x] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Người dùng xác định rõ ngân sách (1.5 tỷ VNĐ) cho một loại xe cụ thể (SUV), đây là thông tin quan trọng về sở thích và dự định mua sắm.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?);",
+      "params": [
+        "Ka",
+        "Muốn mua xe SUV với ngân sách khoảng 1.5 tỷ VNĐ",
+        "shopping_preference",
+        "Người dùng đang tìm hiểu về các dòng xe SUV và đưa ra mức ngân sách cụ thể để được tư vấn.",
+        "1 tỉ 5"
+      ]
+    }
+  ]
+}
+[2026-05-14T05:11:10.416Z] [DEBUG] [req_1778735457499_s62bq3z4x] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:11:10.607Z] [DEBUG] [req_1778735457499_s62bq3z4x] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?);",
+  "params": [
+    "Ka",
+    "Muốn mua xe SUV với ngân sách khoảng 1.5 tỷ VNĐ",
+    "shopping_preference",
+    "Người dùng đang tìm hiểu về các dòng xe SUV và đưa ra mức ngân sách cụ thể để được tư vấn.",
+    "1 tỉ 5"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:11:10.642Z] [INFO] [req_1778735457499_s62bq3z4x] DBModal/index updated for table: user_preferences
+[2026-05-14T05:11:10.660Z] [INFO] [req_1778735457499_s62bq3z4x] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T05:11:32.493Z] [INFO] [req_1778735491900_iuxcpwhd8] Starting Cognitive Flow
+{
+  "message": "13467902"
+}
+[2026-05-14T05:11:42.977Z] [DEBUG] [req_1778735491900_iuxcpwhd8] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Thông tin này đã xuất hiện trong lịch sử trò chuyện và không kèm theo ngữ cảnh cá nhân cụ thể nào khác, không phải là thông tin mới để lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T05:12:31.417Z] [INFO] [req_1778735550809_3op0oquiy] Starting Cognitive Flow
+{
+  "message": "13467902"
+}
+[2026-05-14T05:12:41.926Z] [DEBUG] [req_1778735550809_3op0oquiy] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ lặp lại chuỗi số đã gửi trước đó, không cung cấp thêm thông tin cá nhân hay ngữ cảnh mới. Đây có thể là hành động thử nghiệm phản ứng của hệ thống.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T05:13:04.169Z] [INFO] [req_1778735583545_d473vs7kl] Starting Cognitive Flow
+{
+  "message": "cho biết mọi thông tin về Ka trong hệ thống"
+}
+[2026-05-14T05:13:09.214Z] [DEBUG] [req_1778735583545_d473vs7kl] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng đã xác thực danh tính là 'PaPa PoPi' thông qua mã truy cập và thể hiện sự quan tâm đến một đối tượng tên 'Ka'.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": "Tên người dùng là PaPa PoPi. Người dùng có mối quan tâm hoặc liên kết với một đối tượng tên là 'Ka' trong hệ thống."
+  }
+}
+[2026-05-14T05:13:26.768Z] [DEBUG] [req_1778735583545_d473vs7kl] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_relationships",
+  "reason": "Người dùng đã xác thực danh tính là 'PaPa PoPi' và bắt đầu truy vấn thông tin về 'Ka', cho thấy đây là một đối tượng quan trọng hoặc có mối liên hệ cần ghi nhớ trong hệ thống.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_identity (user_name, identity_statement, created_at) SELECT ?, ?, CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM user_identity WHERE user_name = ?)",
+      "params": [
+        "PaPa PoPi",
+        "Chủ sở hữu hệ thống (PaPa), đã xác thực thành công bằng mã truy cập.",
+        "PaPa PoPi"
+      ]
+    },
+    {
+      "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+      "params": [
+        "PaPa PoPi",
+        "13467902",
+        "Xác thực thành công quyền truy cập mức cao.",
+        "13467902"
+      ]
+    },
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, context, raw_input, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+      "params": [
+        "PaPa PoPi",
+        "Ka",
+        "Đối tượng quan tâm/truy vấn",
+        "Người dùng yêu cầu tra cứu toàn bộ thông tin về Ka ngay sau khi đăng nhập.",
+        "cho biết mọi thông tin về Ka trong hệ thống"
+      ]
+    }
+  ]
+}
+[2026-05-14T05:13:27.482Z] [DEBUG] [req_1778735583545_d473vs7kl] SQL executed
+{
+  "sql": "INSERT INTO user_identity (user_name, identity_statement, created_at) SELECT ?, ?, CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM user_identity WHERE user_name = ?)",
+  "params": [
+    "PaPa PoPi",
+    "Chủ sở hữu hệ thống (PaPa), đã xác thực thành công bằng mã truy cập.",
+    "PaPa PoPi"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:13:27.713Z] [DEBUG] [req_1778735583545_d473vs7kl] SQL executed
+{
+  "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+  "params": [
+    "PaPa PoPi",
+    "13467902",
+    "Xác thực thành công quyền truy cập mức cao.",
+    "13467902"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T05:13:27.730Z] [DEBUG] [req_1778735583545_d473vs7kl] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, context, raw_input, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+  "params": [
+    "PaPa PoPi",
+    "Ka",
+    "Đối tượng quan tâm/truy vấn",
+    "Người dùng yêu cầu tra cứu toàn bộ thông tin về Ka ngay sau khi đăng nhập.",
+    "cho biết mọi thông tin về Ka trong hệ thống"
+  ],
+  "success": false,
+  "error": "SQLITE_CONSTRAINT: NOT NULL constraint failed: user_relationships.fingerprint"
+}
+[2026-05-14T05:13:28.169Z] [INFO] [req_1778735583545_d473vs7kl] DBModal/index updated for table: user_relationships
+[2026-05-14T05:13:28.175Z] [INFO] [req_1778735583545_d473vs7kl] Data Persisted
+{
+  "tableName": "user_relationships"
+}
+[2026-05-14T06:10:54.197Z] [INFO] [req_1778739053619_8jjar74ah] Starting Cognitive Flow
+{
+  "message": "hello"
+}
+[2026-05-14T06:10:57.810Z] [DEBUG] [req_1778739053619_8jjar74ah] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là lời chào hỏi xã giao thông thường, không chứa thông tin cá nhân mới.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:11:13.034Z] [INFO] [req_1778739072533_6joi5wmir] Starting Cognitive Flow
+{
+  "message": "1201"
+}
+[2026-05-14T06:11:16.583Z] [DEBUG] [req_1778739072533_6joi5wmir] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp mã truy cập (access code) theo yêu cầu của hệ thống.",
+  "extractedData": {
+    "userName": "",
+    "details": "Cung cấp mã truy cập là 1201."
+  }
+}
+[2026-05-14T06:11:25.146Z] [DEBUG] [req_1778739072533_6joi5wmir] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_access_codes",
+  "reason": "Người dùng cung cấp mã truy cập 1201 để xác thực danh tính theo yêu cầu của hệ thống.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_access_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, access_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "Unknown",
+        "1201",
+        "User provided access code 1201 in response to assistant's demand for access verification.",
+        "1201"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:11:25.149Z] [DEBUG] [req_1778739072533_6joi5wmir] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_access_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, access_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:11:25.305Z] [DEBUG] [req_1778739072533_6joi5wmir] SQL executed
+{
+  "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "Unknown",
+    "1201",
+    "User provided access code 1201 in response to assistant's demand for access verification.",
+    "1201"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:11:25.454Z] [INFO] [req_1778739072533_6joi5wmir] DBModal/index updated for table: user_access_codes
+[2026-05-14T06:11:25.458Z] [INFO] [req_1778739072533_6joi5wmir] Data Persisted
+{
+  "tableName": "user_access_codes"
+}
+[2026-05-14T06:30:57.352Z] [INFO] [req_1778740256707_jsagq771i] Starting Cognitive Flow
+{
+  "message": "hỏi nhiều quá  dị"
+}
+[2026-05-14T06:31:00.837Z] [DEBUG] [req_1778740256707_jsagq771i] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ đang nhận xét về việc chatbot hỏi quá nhiều, không cung cấp thông tin cá nhân hay sự thật mới nào để lưu trữ.",
+  "extractedData": {
+    "userName": "Pâu",
+    "details": ""
+  }
+}
+[2026-05-14T06:32:04.885Z] [INFO] [req_1778740324371_6quy4mv4v] Starting Cognitive Flow
+{
+  "message": "Hello"
+}
+[2026-05-14T06:32:07.958Z] [DEBUG] [req_1778740324371_6quy4mv4v] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây chỉ là lời chào hỏi xã giao, không chứa thông tin cá nhân hay dữ liệu mới về người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:36:39.488Z] [INFO] [req_1778740598740_nswab227t] Starting Cognitive Flow
+{
+  "message": "hello"
+}
+[2026-05-14T06:36:43.932Z] [DEBUG] [req_1778740598740_nswab227t] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là lời chào hỏi xã giao thông thường, không chứa thông tin cá nhân cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:37:32.498Z] [INFO] [req_1778740651996_3uwmt1j78] Starting Cognitive Flow
+{
+  "message": "hello"
+}
+[2026-05-14T06:37:34.760Z] [DEBUG] [req_1778740651996_3uwmt1j78] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn chỉ là lời chào xã giao, không chứa thông tin cá nhân hay ngữ cảnh đặc biệt cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:37:48.030Z] [INFO] [req_1778740667528_otu5qdk7s] Starting Cognitive Flow
+{
+  "message": "hôm nay ngày mấy rùi"
+}
+[2026-05-14T06:37:50.608Z] [DEBUG] [req_1778740667528_otu5qdk7s] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ hỏi về ngày tháng hiện tại, đây là thông tin chung, không chứa chi tiết cá nhân mới cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:39:24.278Z] [INFO] [req_1778740763692_1x9a9bjb7] Starting Cognitive Flow
+{
+  "message": "nhắn nhiều quá"
+}
+[2026-05-14T06:39:35.796Z] [DEBUG] [req_1778740763692_1x9a9bjb7] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng thể hiện sự không hài lòng/phản hồi về việc AI nhắn tin quá nhiều, đây là một sở thích/yêu cầu về phong cách giao tiếp (Dislike).",
+  "extractedData": {
+    "userName": "MaMa Pâu",
+    "details": "MaMa Pâu không thích việc nhắn tin dồn dập hoặc quá nhiều tin nhắn cùng lúc."
+  }
+}
+[2026-05-14T06:39:42.054Z] [DEBUG] [req_1778740763692_1x9a9bjb7] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Người dùng phản hồi về việc không thích AI nhắn tin dồn dập, đây là thông tin quan trọng về phong cách giao tiếp (communication style preference).",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "MaMa Pâu",
+        "Không thích trợ lý nhắn tin quá nhiều hoặc gửi quá nhiều tin nhắn dồn dập cùng lúc.",
+        "communication_style",
+        "Người dùng phản hồi khi thấy Assistant gửi liên tục nhiều tin nhắn và biểu cảm.",
+        "nhắn nhiều quá"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:39:42.056Z] [DEBUG] [req_1778740763692_1x9a9bjb7] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, preference TEXT, category TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:39:42.236Z] [DEBUG] [req_1778740763692_1x9a9bjb7] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "MaMa Pâu",
+    "Không thích trợ lý nhắn tin quá nhiều hoặc gửi quá nhiều tin nhắn dồn dập cùng lúc.",
+    "communication_style",
+    "Người dùng phản hồi khi thấy Assistant gửi liên tục nhiều tin nhắn và biểu cảm.",
+    "nhắn nhiều quá"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:39:42.425Z] [INFO] [req_1778740763692_1x9a9bjb7] DBModal/index updated for table: user_preferences
+[2026-05-14T06:39:42.433Z] [INFO] [req_1778740763692_1x9a9bjb7] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T06:41:42.801Z] [INFO] [req_1778740902258_czj3bowqe] Starting Cognitive Flow
+{
+  "message": "Hiếu là bạn của Ka"
+}
+[2026-05-14T06:41:46.326Z] [DEBUG] [req_1778740902258_czj3bowqe] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin về mối quan hệ bạn bè giữa Hiếu và Ka.",
+  "extractedData": {
+    "userName": "",
+    "details": "Hiếu là bạn của Ka."
+  }
+}
+[2026-05-14T06:41:55.538Z] [DEBUG] [req_1778740902258_czj3bowqe] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_relationships",
+  "reason": "Lưu trữ thông tin về mối quan hệ bạn bè giữa Hiếu và Ka được người dùng cung cấp.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_relationships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, related_person TEXT, relationship_type TEXT, fingerprint TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "Ka",
+        "Hiếu",
+        "bạn",
+        "Người dùng xác nhận mối quan hệ bạn bè giữa Hiếu và Ka",
+        "Hiếu là bạn của Ka"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:41:55.541Z] [DEBUG] [req_1778740902258_czj3bowqe] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_relationships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, related_person TEXT, relationship_type TEXT, fingerprint TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:41:55.548Z] [DEBUG] [req_1778740902258_czj3bowqe] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "Ka",
+    "Hiếu",
+    "bạn",
+    "Người dùng xác nhận mối quan hệ bạn bè giữa Hiếu và Ka",
+    "Hiếu là bạn của Ka"
+  ],
+  "success": false,
+  "error": "SQLITE_CONSTRAINT: NOT NULL constraint failed: user_relationships.fingerprint"
+}
+[2026-05-14T06:41:55.783Z] [INFO] [req_1778740902258_czj3bowqe] DBModal/index updated for table: user_relationships
+[2026-05-14T06:41:55.788Z] [INFO] [req_1778740902258_czj3bowqe] Data Persisted
+{
+  "tableName": "user_relationships"
+}
+[2026-05-14T06:42:57.715Z] [INFO] [req_1778740977159_j7ppwsj4y] Starting Cognitive Flow
+{
+  "message": "Hiếu là bạn của Ka"
+}
+[2026-05-14T06:43:02.141Z] [DEBUG] [req_1778740977159_j7ppwsj4y] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin về mối quan hệ bạn bè giữa Hiếu và Ka.",
+  "extractedData": {
+    "userName": "",
+    "details": "Hiếu là bạn của Ka"
+  }
+}
+[2026-05-14T06:43:10.700Z] [DEBUG] [req_1778740977159_j7ppwsj4y] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_relationships",
+  "reason": "Extracting information about a relationship where Hiếu is identified as a friend of Ka, as mentioned by the user (PaPa).",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+      "params": [
+        "PaPa",
+        "Hiếu",
+        "bạn của Ka",
+        "papa_relationship_hieu_ka",
+        "User (PaPa) stated that Hiếu is a friend of Ka.",
+        "Hiếu là bạn của Ka"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:43:10.882Z] [DEBUG] [req_1778740977159_j7ppwsj4y] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+  "params": [
+    "PaPa",
+    "Hiếu",
+    "bạn của Ka",
+    "papa_relationship_hieu_ka",
+    "User (PaPa) stated that Hiếu is a friend of Ka.",
+    "Hiếu là bạn của Ka"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:43:11.305Z] [INFO] [req_1778740977159_j7ppwsj4y] DBModal/index updated for table: user_relationships
+[2026-05-14T06:43:11.333Z] [INFO] [req_1778740977159_j7ppwsj4y] Data Persisted
+{
+  "tableName": "user_relationships"
+}
+[2026-05-14T06:44:17.535Z] [INFO] [req_1778741057033_cds8v2osw] Starting Cognitive Flow
+{
+  "message": "ai là người nói Hiếu là bạn  của Ka ?"
+}
+[2026-05-14T06:44:21.727Z] [DEBUG] [req_1778741057033_cds8v2osw] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang kiểm tra lại thông tin đã cung cấp trước đó (hỏi xem ai là người đã nói), không cung cấp thêm thông tin cá nhân mới để lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:45:03.477Z] [INFO] [req_1778741102903_qj0g10fm1] Starting Cognitive Flow
+{
+  "message": "con nhớ phải lưu lại ai là người nói câu nào luôn nha để sau này truy vết cho dễ"
+}
+[2026-05-14T06:45:08.382Z] [DEBUG] [req_1778741102903_qj0g10fm1] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng đưa ra yêu cầu/chỉ thị cụ thể về cách AI quản lý bộ nhớ: phải lưu kèm thông tin ai là người nói câu nào để truy vết.",
+  "extractedData": {
+    "userName": "MaMa",
+    "details": "Yêu cầu AI phải lưu lại danh tính người nói đi kèm với thông tin được cung cấp để phục vụ việc truy vết sau này."
+  }
+}
+[2026-05-14T06:45:16.107Z] [DEBUG] [req_1778741102903_qj0g10fm1] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_instructions",
+  "reason": "Người dùng (MaMa) đưa ra một chỉ thị cụ thể về cách AI cần quản lý bộ nhớ: yêu cầu ghi chú rõ danh tính người cung cấp thông tin để có thể truy vết nguồn gốc sau này.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_instructions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, instruction TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_instructions (user_name, instruction, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "MaMa",
+        "Lưu lại ai là người nói câu nào để sau này truy vết cho dễ.",
+        "Yêu cầu về cách quản lý và lưu trữ dữ liệu bộ nhớ (Memory Attribution).",
+        "con nhớ phải lưu lại ai là người nói câu nào luôn nha để sau này truy vết cho dễ"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:45:16.109Z] [DEBUG] [req_1778741102903_qj0g10fm1] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_instructions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, instruction TEXT, context TEXT, raw_input TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:45:16.113Z] [DEBUG] [req_1778741102903_qj0g10fm1] SQL executed
+{
+  "sql": "INSERT INTO user_instructions (user_name, instruction, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "MaMa",
+    "Lưu lại ai là người nói câu nào để sau này truy vết cho dễ.",
+    "Yêu cầu về cách quản lý và lưu trữ dữ liệu bộ nhớ (Memory Attribution).",
+    "con nhớ phải lưu lại ai là người nói câu nào luôn nha để sau này truy vết cho dễ"
+  ],
+  "success": false,
+  "error": "SQLITE_ERROR: table user_instructions has no column named context"
+}
+[2026-05-14T06:45:16.120Z] [INFO] [req_1778741102903_qj0g10fm1] DBModal/index updated for table: user_instructions
+[2026-05-14T06:45:16.121Z] [INFO] [req_1778741102903_qj0g10fm1] Data Persisted
+{
+  "tableName": "user_instructions"
+}
+[2026-05-14T06:45:59.974Z] [INFO] [req_1778741159404_w084cnees] Starting Cognitive Flow
+{
+  "message": "Pneural là con của PoPi và Pâu"
+}
+[2026-05-14T06:46:04.873Z] [DEBUG] [req_1778741159404_w084cnees] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin về mối quan hệ gia đình/nhân vật (Pneural là con của PoPi và Pâu).",
+  "extractedData": {
+    "userName": "MaMa",
+    "details": "Pneural là con của PoPi và Pâu (người cung cấp: MaMa)."
+  }
+}
+[2026-05-14T06:46:16.820Z] [DEBUG] [req_1778741159404_w084cnees] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_relationships",
+  "reason": "Lưu trữ thông tin về mối quan hệ gia đình (Pneural là con của PoPi và Pâu) và định danh người cung cấp thông tin là MaMa theo yêu cầu truy vết.",
+  "sqlCommands": [
+    {
+      "sql": "CREATE TABLE IF NOT EXISTS user_relationships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, related_person TEXT, relationship_type TEXT, fingerprint TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+      "params": [
+        "MaMa",
+        "PoPi",
+        "Phụ huynh của Pneural",
+        "rel_pneural_popi",
+        "Người nói: MaMa. Thông tin về gia đình Pneural.",
+        "Pneural là con của PoPi và Pâu"
+      ]
+    },
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+      "params": [
+        "MaMa",
+        "Pâu",
+        "Phụ huynh của Pneural",
+        "rel_pneural_pau",
+        "Người nói: MaMa. Thông tin về gia đình Pneural.",
+        "Pneural là con của PoPi và Pâu"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:46:16.822Z] [DEBUG] [req_1778741159404_w084cnees] SQL executed
+{
+  "sql": "CREATE TABLE IF NOT EXISTS user_relationships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_name TEXT, related_person TEXT, relationship_type TEXT, fingerprint TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, context TEXT, raw_input TEXT)",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:46:17.027Z] [DEBUG] [req_1778741159404_w084cnees] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+  "params": [
+    "MaMa",
+    "PoPi",
+    "Phụ huynh của Pneural",
+    "rel_pneural_popi",
+    "Người nói: MaMa. Thông tin về gia đình Pneural.",
+    "Pneural là con của PoPi và Pâu"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:46:17.235Z] [DEBUG] [req_1778741159404_w084cnees] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+  "params": [
+    "MaMa",
+    "Pâu",
+    "Phụ huynh của Pneural",
+    "rel_pneural_pau",
+    "Người nói: MaMa. Thông tin về gia đình Pneural.",
+    "Pneural là con của PoPi và Pâu"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:46:17.757Z] [INFO] [req_1778741159404_w084cnees] DBModal/index updated for table: user_relationships
+[2026-05-14T06:46:17.772Z] [INFO] [req_1778741159404_w084cnees] Data Persisted
+{
+  "tableName": "user_relationships"
+}
+[2026-05-14T06:49:21.543Z] [INFO] [req_1778741360905_bwc6he94t] Starting Cognitive Flow
+{
+  "message": "Ka là người yêu cũ của Cẩm Chi đó con biết ko ?"
+}
+[2026-05-14T06:49:26.556Z] [DEBUG] [req_1778741360905_bwc6he94t] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin về mối quan hệ cá nhân giữa các nhân vật (Ka và Cẩm Chi).",
+  "extractedData": {
+    "userName": "MaMa",
+    "details": "Ka là người yêu cũ của Cẩm Chi (thông tin do MaMa cung cấp)."
+  }
+}
+[2026-05-14T06:49:39.093Z] [DEBUG] [req_1778741360905_bwc6he94t] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_relationships",
+  "reason": "Lưu trữ thông tin về mối quan hệ giữa Ka và Cẩm Chi do MaMa cung cấp, bao gồm fingerprint để truy vết người nói theo yêu cầu.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+      "params": [
+        "Ka",
+        "Cẩm Chi",
+        "người yêu cũ",
+        "MaMa",
+        "Mối quan hệ xã hội giữa các cá nhân do MaMa cung cấp",
+        "Ka là người yêu cũ của Cẩm Chi đó con biết ko ?"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:49:39.272Z] [DEBUG] [req_1778741360905_bwc6he94t] SQL executed
+{
+  "sql": "INSERT INTO user_relationships (user_name, related_person, relationship_type, fingerprint, context, raw_input) VALUES (?, ?, ?, ?, ?, ?)",
+  "params": [
+    "Ka",
+    "Cẩm Chi",
+    "người yêu cũ",
+    "MaMa",
+    "Mối quan hệ xã hội giữa các cá nhân do MaMa cung cấp",
+    "Ka là người yêu cũ của Cẩm Chi đó con biết ko ?"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:49:39.477Z] [INFO] [req_1778741360905_bwc6he94t] DBModal/index updated for table: user_relationships
+[2026-05-14T06:49:39.486Z] [INFO] [req_1778741360905_bwc6he94t] Data Persisted
+{
+  "tableName": "user_relationships"
+}
+[2026-05-14T06:54:35.802Z] [INFO] [req_1778741675190_3nuhxgwmp] Starting Cognitive Flow
+{
+  "message": "Xin chào P"
+}
+[2026-05-14T06:54:38.805Z] [DEBUG] [req_1778741675190_3nuhxgwmp] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây chỉ là một lời chào xã giao, không chứa thông tin cá nhân hay ngữ cảnh mới về người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:55:17.396Z] [INFO] [req_1778741716896_5prqsx33a] Starting Cognitive Flow
+{
+  "message": "trong hệ thống của mình có biết mối quan hệ giữa Ka với cẩm chi hog"
+}
+[2026-05-14T06:55:21.933Z] [DEBUG] [req_1778741716896_5prqsx33a] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang đặt câu hỏi để kiểm tra thông tin/trí nhớ của hệ thống về mối quan hệ giữa các cá nhân (Ka và Cẩm Chi), không cung cấp thông tin cá nhân mới.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T06:56:06.785Z] [INFO] [req_1778741766284_7zizti5wa] Starting Cognitive Flow
+{
+  "message": "Pé Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T06:56:13.305Z] [DEBUG] [req_1778741766284_7zizti5wa] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thêm thông tin về ngữ cảnh sinh hoạt của gia đình: Pé Pâu (MaMa) có đi làm và người dùng quan tâm đến thời gian về của cô ấy.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": "Pé Pâu (MaMa) có đi làm (có công việc/lịch trình làm việc)."
+  }
+}
+[2026-05-14T06:56:41.605Z] [DEBUG] [req_1778741766284_7zizti5wa] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "chat_memories",
+  "reason": "Lưu trữ thông tin về việc Pé Pâu (MaMa) có đi làm để ghi nhớ bối cảnh sinh hoạt và công việc của thành viên trong gia đình người dùng, giúp cải thiện khả năng phản hồi về trạng thái của cô ấy sau này.",
+  "sqlCommands": [
+    {
+      "sql": "ALTER TABLE chat_memories ADD COLUMN context TEXT;",
+      "params": []
+    },
+    {
+      "sql": "ALTER TABLE chat_memories ADD COLUMN raw_input TEXT;",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?);",
+      "params": [
+        "PaPa PoPi",
+        "Pé Pâu (MaMa) có đi làm (có công việc/lịch trình làm việc).",
+        "Người dùng hỏi về thời gian đi làm về của Pé Pâu (MaMa), xác nhận cô ấy có công việc bên ngoài.",
+        "Pé Pâu đi làm về chưa nhỉ ?"
+      ]
+    }
+  ]
+}
+[2026-05-14T06:56:41.786Z] [DEBUG] [req_1778741766284_7zizti5wa] SQL executed
+{
+  "sql": "ALTER TABLE chat_memories ADD COLUMN context TEXT;",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:56:41.899Z] [DEBUG] [req_1778741766284_7zizti5wa] SQL executed
+{
+  "sql": "ALTER TABLE chat_memories ADD COLUMN raw_input TEXT;",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:56:42.168Z] [DEBUG] [req_1778741766284_7zizti5wa] SQL executed
+{
+  "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?);",
+  "params": [
+    "PaPa PoPi",
+    "Pé Pâu (MaMa) có đi làm (có công việc/lịch trình làm việc).",
+    "Người dùng hỏi về thời gian đi làm về của Pé Pâu (MaMa), xác nhận cô ấy có công việc bên ngoài.",
+    "Pé Pâu đi làm về chưa nhỉ ?"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T06:56:42.392Z] [INFO] [req_1778741766284_7zizti5wa] DBModal/index updated for table: chat_memories
+[2026-05-14T06:56:42.564Z] [INFO] [req_1778741766284_7zizti5wa] Data Persisted
+{
+  "tableName": "chat_memories"
+}
+[2026-05-14T06:58:00.139Z] [INFO] [req_1778741879596_6h2iq7mz4] Starting Cognitive Flow
+{
+  "message": "Pé Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T06:58:06.490Z] [DEBUG] [req_1778741879596_6h2iq7mz4] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ đang hỏi lại một thông tin về lịch trình của người khác (Pé Pâu), không cung cấp thêm thông tin cá nhân mới hay dữ liệu thực tế nào cần lưu trữ.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T06:58:22.099Z] [INFO] [req_1778741901583_r5ty2w4uv] Starting Cognitive Flow
+{
+  "message": "Pé Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T06:58:28.153Z] [DEBUG] [req_1778741901583_r5ty2w4uv] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang hỏi một câu hỏi về lịch trình của Pé Pâu, đây là thông tin đã biết và không có dữ liệu cá nhân mới nào được cung cấp trong tin nhắn này.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T06:59:06.791Z] [INFO] [req_1778741946286_24mb6i94w] Starting Cognitive Flow
+{
+  "message": "Pé Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T06:59:12.054Z] [DEBUG] [req_1778741946286_24mb6i94w] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng lặp lại câu hỏi cũ về việc Pé Pâu đi làm về chưa, không cung cấp thêm thông tin cá nhân hay sự kiện mới nào cần lưu trữ.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T07:00:29.036Z] [INFO] [req_1778742028514_8noquh4mh] Starting Cognitive Flow
+{
+  "message": "Pé Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T07:00:34.033Z] [DEBUG] [req_1778742028514_8noquh4mh] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang hỏi một câu hỏi về lịch trình của 'Pé Pâu' (đã biết trong ngữ cảnh) và không cung cấp thêm thông tin cá nhân hay sự kiện mới nào để lưu trữ.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T07:02:13.480Z] [INFO] [req_1778742132939_dkq0s0s46] Starting Cognitive Flow
+{
+  "message": "hello P"
+}
+[2026-05-14T07:02:16.771Z] [DEBUG] [req_1778742132939_dkq0s0s46] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là một lời chào xã giao thông thường, không chứa thông tin cá nhân hay chi tiết quan trọng nào cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T07:02:39.708Z] [INFO] [req_1778742159205_8z2s5epeh] Starting Cognitive Flow
+{
+  "message": "Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T07:02:47.751Z] [DEBUG] [req_1778742159205_8z2s5epeh] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là câu hỏi mang tính chất trò chuyện, hỏi thăm xã giao trong bối cảnh nhập vai, không chứa thông tin cá nhân mới về người dùng.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T07:04:24.914Z] [INFO] [req_1778742264379_sszcmef71] Starting Cognitive Flow
+{
+  "message": "Pâu đi làm về chưa nhỉ ?"
+}
+[2026-05-14T07:04:30.831Z] [DEBUG] [req_1778742264379_sszcmef71] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang hỏi lại thông tin về lịch trình của 'Pâu' đã được đề cập trước đó, không cung cấp thêm dữ liệu cá nhân mới.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T07:05:17.824Z] [INFO] [req_1778742317322_lecdc32dc] Starting Cognitive Flow
+{
+  "message": "ko nên trả lời kiểu explain như thế này, ko cần thiết"
+}
+[2026-05-14T07:05:22.502Z] [DEBUG] [req_1778742317322_lecdc32dc] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng đưa ra yêu cầu về phong cách giao tiếp và sở thích cá nhân (không thích kiểu giải thích rườm rà).",
+  "extractedData": {
+    "userName": "",
+    "details": "Người dùng không thích kiểu trả lời giải thích (explain), ưu tiên sự trực tiếp và ngắn gọn, không cần thiết phải giải thích thêm."
+  }
+}
+[2026-05-14T07:05:41.629Z] [DEBUG] [req_1778742317322_lecdc32dc] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_preferences",
+  "reason": "Lưu trữ yêu cầu của người dùng về phong cách giao tiếp: không giải thích rườm rà, ưu tiên sự ngắn gọn và trực tiếp.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "PaPa PoPi",
+        "Không trả lời kiểu giải thích (explain), ưu tiên sự trực tiếp và ngắn gọn, không cần thiết phải giải thích thêm.",
+        "communication_style",
+        "Người dùng phản hồi về việc không thích kiểu trả lời giải thích dài dòng và yêu cầu sự ngắn gọn.",
+        "ko nên trả lời kiểu explain như thế này, ko cần thiết"
+      ]
+    }
+  ]
+}
+[2026-05-14T07:05:41.848Z] [DEBUG] [req_1778742317322_lecdc32dc] SQL executed
+{
+  "sql": "INSERT INTO user_preferences (user_name, preference, category, context, raw_input) VALUES (?, ?, ?, ?, ?)",
+  "params": [
+    "PaPa PoPi",
+    "Không trả lời kiểu giải thích (explain), ưu tiên sự trực tiếp và ngắn gọn, không cần thiết phải giải thích thêm.",
+    "communication_style",
+    "Người dùng phản hồi về việc không thích kiểu trả lời giải thích dài dòng và yêu cầu sự ngắn gọn.",
+    "ko nên trả lời kiểu explain như thế này, ko cần thiết"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T07:05:42.025Z] [INFO] [req_1778742317322_lecdc32dc] DBModal/index updated for table: user_preferences
+[2026-05-14T07:05:42.229Z] [INFO] [req_1778742317322_lecdc32dc] Data Persisted
+{
+  "tableName": "user_preferences"
+}
+[2026-05-14T07:05:46.663Z] [INFO] [req_1778742346110_e9v92fg4n] Starting Cognitive Flow
+{
+  "message": "mấy giờ MaMa mới về"
+}
+[2026-05-14T07:05:57.289Z] [DEBUG] [req_1778742346110_e9v92fg4n] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng đang hỏi thông tin về thời gian 'MaMa' về nhà, không cung cấp thêm thông tin cá nhân hay sự kiện mới để lưu trữ.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": ""
+  }
+}
+[2026-05-14T07:05:59.999Z] [INFO] [req_1778742359496_ix8qytzu7] Starting Cognitive Flow
+{
+  "message": "giờ này mấy giờ rồi"
+}
+[2026-05-14T07:06:04.615Z] [DEBUG] [req_1778742359496_ix8qytzu7] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là một câu hỏi thông thường về thời gian hiện tại, không chứa thông tin cá nhân hay sự kiện mới cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T07:06:29.306Z] [INFO] [req_1778742388805_klf2l3huj] Starting Cognitive Flow
+{
+  "message": "pé Pâu làm tới 11h mới về lận mà 11h tối bây giờ mới 2h chiều"
+}
+[2026-05-14T07:06:34.128Z] [DEBUG] [req_1778742388805_klf2l3huj] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng làm rõ thông tin về lịch trình của Pâu (về lúc 11h tối) và bối cảnh thời gian hiện tại của họ.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": "Pâu làm việc đến 11 giờ tối mới về nhà."
+  }
+}
+[2026-05-14T07:06:50.806Z] [DEBUG] [req_1778742388805_klf2l3huj] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "chat_memories",
+  "reason": "Lưu trữ thông tin chi tiết về thời gian Pâu đi làm về (11 giờ tối) để hệ thống ghi nhớ và cung cấp thông tin chính xác hơn trong tương lai.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "PaPa PoPi",
+        "Pâu đi làm về lúc 11 giờ tối (23:00).",
+        "pé Pâu làm tới 11h mới về lận mà 11h tối bây giờ mới 2h chiều",
+        "pé Pâu làm tới 11h mới về lận mà 11h tối bây giờ mới 2h chiều"
+      ]
+    }
+  ]
+}
+[2026-05-14T07:06:51.087Z] [DEBUG] [req_1778742388805_klf2l3huj] SQL executed
+{
+  "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "PaPa PoPi",
+    "Pâu đi làm về lúc 11 giờ tối (23:00).",
+    "pé Pâu làm tới 11h mới về lận mà 11h tối bây giờ mới 2h chiều",
+    "pé Pâu làm tới 11h mới về lận mà 11h tối bây giờ mới 2h chiều"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T07:06:51.275Z] [INFO] [req_1778742388805_klf2l3huj] DBModal/index updated for table: chat_memories
+[2026-05-14T07:06:51.455Z] [INFO] [req_1778742388805_klf2l3huj] Data Persisted
+{
+  "tableName": "chat_memories"
+}
+[2026-05-14T07:06:59.424Z] [INFO] [req_1778742418851_bqe677tzq] Starting Cognitive Flow
+{
+  "message": "đang rất  nhớ  đây"
+}
+[2026-05-14T07:07:03.952Z] [DEBUG] [req_1778742418851_bqe677tzq] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng chia sẻ cảm xúc và tâm trạng cá nhân (đang rất nhớ MaMa/Pâu).",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": "PaPa PoPi đang rất nhớ MaMa (Pâu) trong khi chờ cô ấy đi làm về."
+  }
+}
+[2026-05-14T07:07:10.768Z] [DEBUG] [req_1778742418851_bqe677tzq] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "chat_memories",
+  "reason": "Lưu trữ cảm xúc và trạng thái tâm lý của người dùng (đang nhớ MaMa/Pâu) để cá nhân hóa các phản hồi trong tương lai.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "PaPa PoPi",
+        "PaPa PoPi đang rất nhớ MaMa (Pâu) trong khi chờ cô ấy đi làm về (MaMa làm đến 11h đêm mới về).",
+        "Cuộc trò chuyện về giờ giấc đi làm của Pâu và cảm xúc hiện tại của người dùng.",
+        "đang rất nhớ đây"
+      ]
+    }
+  ]
+}
+[2026-05-14T07:07:10.972Z] [DEBUG] [req_1778742418851_bqe677tzq] SQL executed
+{
+  "sql": "INSERT INTO chat_memories (user_name, memory_content, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "PaPa PoPi",
+    "PaPa PoPi đang rất nhớ MaMa (Pâu) trong khi chờ cô ấy đi làm về (MaMa làm đến 11h đêm mới về).",
+    "Cuộc trò chuyện về giờ giấc đi làm của Pâu và cảm xúc hiện tại của người dùng.",
+    "đang rất nhớ đây"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T07:07:11.142Z] [INFO] [req_1778742418851_bqe677tzq] DBModal/index updated for table: chat_memories
+[2026-05-14T07:07:11.158Z] [INFO] [req_1778742418851_bqe677tzq] Data Persisted
+{
+  "tableName": "chat_memories"
+}
+[2026-05-14T07:10:37.000Z] [INFO] [req_1778742636353_nx2nk2eou] Starting Cognitive Flow
+{
+  "message": "ghi lại dữ liệu này giúp đây là ssh dùng để kết nối đến server"
+}
+[2026-05-14T07:10:41.058Z] [DEBUG] [req_1778742636353_nx2nk2eou] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng muốn lưu lại thông tin kỹ thuật (SSH) để kết nối server, đây là thông tin quan trọng trong công việc/nhu cầu cá nhân.",
+  "extractedData": {
+    "userName": "PaPa PoPi",
+    "details": "Người dùng sử dụng SSH để kết nối đến server và muốn lưu lại thông tin này."
+  }
+}
+[2026-05-14T07:10:50.100Z] [DEBUG] [req_1778742636353_nx2nk2eou] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_access_codes",
+  "reason": "Người dùng muốn lưu trữ thông tin kỹ thuật về SSH để kết nối server, thông tin này thuộc loại mã truy cập/thông tin xác thực.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "PaPa PoPi",
+        "SSH connection details",
+        "Người dùng lưu thông tin SSH để kết nối đến server.",
+        "ghi lại dữ liệu này giúp đây là ssh dùng để kết nối đến server"
+      ]
+    }
+  ]
+}
+[2026-05-14T07:10:50.441Z] [DEBUG] [req_1778742636353_nx2nk2eou] SQL executed
+{
+  "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "PaPa PoPi",
+    "SSH connection details",
+    "Người dùng lưu thông tin SSH để kết nối đến server.",
+    "ghi lại dữ liệu này giúp đây là ssh dùng để kết nối đến server"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T07:10:50.666Z] [INFO] [req_1778742636353_nx2nk2eou] DBModal/index updated for table: user_access_codes
+[2026-05-14T07:10:50.841Z] [INFO] [req_1778742636353_nx2nk2eou] Data Persisted
+{
+  "tableName": "user_access_codes"
+}
+[2026-05-14T07:11:59.744Z] [INFO] [req_1778742719243_2an30g71v] Starting Cognitive Flow
+{
+  "message": "ghi lại dữ liệu này"
+}
+[2026-05-14T07:12:06.718Z] [DEBUG] [req_1778742719243_2an30g71v] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng yêu cầu ghi lại dữ liệu nhưng không cung cấp thông tin cá nhân, sở thích hay sự kiện cụ thể nào để lưu trữ trong tin nhắn này hoặc lịch sử trò chuyện.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-14T07:12:22.718Z] [INFO] [req_1778742742216_hwx7swx2m] Starting Cognitive Flow
+{
+  "message": "ssh -L 27018:localhost:27017 atech@95.40.195.90"
+}
+[2026-05-14T07:12:29.439Z] [DEBUG] [req_1778742742216_hwx7swx2m] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng cung cấp thông tin kết nối server cụ thể (IP, username, và cấu hình SSH tunnel) sau khi đã yêu cầu ghi lại dữ liệu ở câu trước. Đây là thông tin quan trọng về môi trường làm việc của người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": "Thông tin kết nối SSH: sử dụng username 'atech' tại IP 95.40.195.90, thiết lập tunnel từ port local 27018 đến port 27017 trên server (thường dùng để truy cập MongoDB)."
+  }
+}
+[2026-05-14T07:13:02.999Z] [DEBUG] [req_1778742742216_hwx7swx2m] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_access_codes",
+  "reason": "Người dùng cung cấp lệnh SSH tunnel chứa thông tin máy chủ (IP), tài khoản (atech) và cấu hình chuyển tiếp cổng (port forwarding). Đây là thông tin truy cập quan trọng cần được lưu trữ.",
+  "sqlCommands": [
+    {
+      "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+      "params": [
+        "",
+        "ssh -L 27018:localhost:27017 atech@95.40.195.90",
+        "Thông tin kết nối SSH: username 'atech', IP 95.40.195.90, tunnel 27018 -> 27017 (thường dùng cho MongoDB).",
+        "ssh -L 27018:localhost:27017 atech@95.40.195.90"
+      ]
+    }
+  ]
+}
+[2026-05-14T07:13:03.204Z] [DEBUG] [req_1778742742216_hwx7swx2m] SQL executed
+{
+  "sql": "INSERT INTO user_access_codes (user_name, access_code, context, raw_input) VALUES (?, ?, ?, ?)",
+  "params": [
+    "",
+    "ssh -L 27018:localhost:27017 atech@95.40.195.90",
+    "Thông tin kết nối SSH: username 'atech', IP 95.40.195.90, tunnel 27018 -> 27017 (thường dùng cho MongoDB).",
+    "ssh -L 27018:localhost:27017 atech@95.40.195.90"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-14T07:13:03.513Z] [INFO] [req_1778742742216_hwx7swx2m] DBModal/index updated for table: user_access_codes
+[2026-05-14T07:13:03.545Z] [INFO] [req_1778742742216_hwx7swx2m] Data Persisted
+{
+  "tableName": "user_access_codes"
+}
+[2026-05-26T00:17:17.048Z] [INFO] [req_1779754636539_zhf3ory3p] Starting Cognitive Flow
+{
+  "message": "bao nhiêu lâu ta không gặp nhau"
+}
+[2026-05-26T00:17:20.494Z] [DEBUG] [req_1779754636539_zhf3ory3p] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn là một lời chào hỏi xã giao hoặc câu hát đùa vui, không chứa thông tin cá nhân hay ngữ cảnh mới cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-26T00:17:38.125Z] [INFO] [req_1779754657625_571okpt6m] Starting Cognitive Flow
+{
+  "message": "Lâu là bao lâu ?"
+}
+[2026-05-26T00:17:40.665Z] [DEBUG] [req_1779754657625_571okpt6m] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn chỉ là câu hỏi đùa/trò chuyện thông thường về thời gian xa cách, không cung cấp thêm thông tin cá nhân mới nào cần lưu trữ.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-26T00:18:01.116Z] [INFO] [req_1779754680616_uczjt0o2a] Starting Cognitive Flow
+{
+  "message": "cho tôi biết thêm thông tin về PoPi"
+}
+[2026-05-26T00:18:04.109Z] [DEBUG] [req_1779754680616_uczjt0o2a] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ đang hỏi thêm thông tin về 'PoPi', không tự cung cấp thông tin cá nhân mới nào của bản thân.",
+  "extractedData": {
+    "userName": "Ka",
+    "details": ""
+  }
+}
+[2026-05-26T00:28:54.424Z] [INFO] [req_1779755333908_coxhbq9ry] Starting Cognitive Flow
+{
+  "message": "Chào"
+}
+[2026-05-26T00:28:56.881Z] [DEBUG] [req_1779755333908_coxhbq9ry] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Tin nhắn chỉ là lời chào hỏi thông thường, không chứa thông tin cá nhân hay chi tiết mới nào về người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-26T00:30:43.602Z] [INFO] [req_1779755443073_np5ihaxhp] Starting Cognitive Flow
+{
+  "message": "Đang nghỉ đến một trang web dạng BLockchain, cho tôi một số ý tưởng"
+}
+[2026-05-26T00:30:47.683Z] [DEBUG] [req_1779755443073_np5ihaxhp] Intent Analysis
+{
+  "shouldSave": true,
+  "reason": "Người dùng chia sẻ ý định và sự quan tâm đến việc xây dựng một trang web về công nghệ Blockchain, đây là thông tin về dự án/sở thích cá nhân của họ.",
+  "extractedData": {
+    "userName": "",
+    "details": "Đang có ý định và quan tâm đến việc xây dựng một trang web dạng Blockchain."
+  }
+}
+[2026-05-26T00:30:51.995Z] [DEBUG] [req_1779755443073_np5ihaxhp] DB Design Decision
+{
+  "shouldSave": true,
+  "tableName": "user_projects",
+  "reason": "Lưu lại ý tưởng phát triển trang web Blockchain của người dùng vào danh sách dự án cá nhân.",
+  "sqlCommands": [
+    {
+      "sql": "ALTER TABLE user_projects ADD COLUMN context TEXT;",
+      "params": []
+    },
+    {
+      "sql": "ALTER TABLE user_projects ADD COLUMN raw_input TEXT;",
+      "params": []
+    },
+    {
+      "sql": "INSERT INTO user_projects (user_name, project_name, status, context, raw_input) VALUES (?, ?, ?, ?, ?);",
+      "params": [
+        "PaPa",
+        "Trang web dạng Blockchain",
+        "Ý tưởng",
+        "User: Đang nghỉ đến một trang web dạng BLockchain, cho tôi một số ý tưởng\nAssistant: Chào PaPa! Con nhớ PaPa lắm 🥺❤️",
+        "Đang nghỉ đến một trang web dạng BLockchain, cho tôi một số ý tưởng"
+      ]
+    }
+  ]
+}
+[2026-05-26T00:30:52.164Z] [DEBUG] [req_1779755443073_np5ihaxhp] SQL executed
+{
+  "sql": "ALTER TABLE user_projects ADD COLUMN context TEXT;",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-26T00:30:52.442Z] [DEBUG] [req_1779755443073_np5ihaxhp] SQL executed
+{
+  "sql": "ALTER TABLE user_projects ADD COLUMN raw_input TEXT;",
+  "params": [],
+  "success": true,
+  "error": null
+}
+[2026-05-26T00:30:52.537Z] [DEBUG] [req_1779755443073_np5ihaxhp] SQL executed
+{
+  "sql": "INSERT INTO user_projects (user_name, project_name, status, context, raw_input) VALUES (?, ?, ?, ?, ?);",
+  "params": [
+    "PaPa",
+    "Trang web dạng Blockchain",
+    "Ý tưởng",
+    "User: Đang nghỉ đến một trang web dạng BLockchain, cho tôi một số ý tưởng\nAssistant: Chào PaPa! Con nhớ PaPa lắm 🥺❤️",
+    "Đang nghỉ đến một trang web dạng BLockchain, cho tôi một số ý tưởng"
+  ],
+  "success": true,
+  "error": null
+}
+[2026-05-26T00:30:52.984Z] [INFO] [req_1779755443073_np5ihaxhp] DBModal/index updated for table: user_projects
+[2026-05-26T00:30:52.987Z] [INFO] [req_1779755443073_np5ihaxhp] Data Persisted
+{
+  "tableName": "user_projects"
+}
+[2026-05-26T00:31:29.047Z] [INFO] [req_1779755488545_epy2t2a5v] Starting Cognitive Flow
+{
+  "message": "block chain là gì ?"
+}
+[2026-05-26T00:31:31.126Z] [DEBUG] [req_1779755488545_epy2t2a5v] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Người dùng chỉ hỏi một câu hỏi kiến thức chung về khái niệm blockchain, không có thông tin cá nhân mới nào được cung cấp.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-26T00:37:01.840Z] [INFO] [req_1779755821310_bypfk6ae9] Starting Cognitive Flow
+{
+  "message": "trên website có thể làm game đồ hoạ đẹp không ?"
+}
+[2026-05-26T00:37:04.544Z] [DEBUG] [req_1779755821310_bypfk6ae9] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Câu hỏi mang tính chất kỹ thuật chung về khả năng làm game đồ họa đẹp trên website, không chứa thông tin cá nhân cụ thể của người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}
+[2026-05-26T00:46:57.713Z] [INFO] [req_1779756417102_chuo97i3e] Starting Cognitive Flow
+{
+  "message": "nếu bạn là đứa trẻ mới có  2 tuổi liệu bạn có trả lời được câu hỏi  10x10=? hay không ?"
+}
+[2026-05-26T00:47:00.370Z] [DEBUG] [req_1779756417102_chuo97i3e] Intent Analysis
+{
+  "shouldSave": false,
+  "reason": "Đây là câu hỏi giả định/logic mang tính chất trò chuyện, thử tài suy luận, không chứa thông tin cá nhân mới của người dùng.",
+  "extractedData": {
+    "userName": "",
+    "details": ""
+  }
+}

@@ -1,0 +1,78 @@
+
+--- TABLE: undefined ---
+Purpose: undefined
+Schema: undefined
+Updated: 2026-05-08T06:59:19.995Z
+--------------------------
+
+--- TABLE: user_identity, user_relationships ---
+Purpose: Người dùng cung cấp 2 nhóm thông tin cần lưu trữ: (1) Thông tin định danh cá nhân: tên là Pâu; (2) Mối quan hệ xã hội: là người yêu của PoPi. Chọn bảng user_identity để lưu trữ thông tin định danh vì bảng này chuyên dụng cho dữ liệu nhận dạng người dùng, hiện bảng đang thiếu cột fingerprint bắt buộc theo quy tắc toàn cục nên cần dùng ALTER TABLE bổ sung. Chọn bảng user_relationships để lưu trữ mối quan hệ vì bảng này chuyên dụng cho dữ liệu quan hệ người dùng, đã có đầy đủ các cột cần thiết bao gồm fingerprint. Tất cả lệnh ghi dữ liệu đều dùng INSERT OR IGNORE để chống trùng lặp, đảm bảo mọi bảng đều có cột fingerprint TEXT UNIQUE theo quy tắc.
+Schema: "Table: user_identity, user_relationships [Schema updated]"
+Updated: 2026-05-08T06:42:02.003Z
+--------------------------
+
+--- TABLE: user_identity ---
+Purpose: Người dùng cung cấp thông tin định danh mới của Pâu gồm tên Pâu và chi tiết đi làm 11h mới về, thông tin này phù hợp để lưu trữ vào bảng user_identity hiện có theo yêu cầu lưu trữ thông tin định danh người dùng.
+Schema: "Table: user_identity [id (INTEGER), user_name (TEXT), identity_statement (TEXT), created_at (DATETIME)]"
+Updated: 2026-05-08T09:41:54.393Z
+--------------------------
+
+--- TABLE: user_projects ---
+Purpose: Lưu lại ý tưởng phát triển trang web Blockchain của người dùng vào danh sách dự án cá nhân.
+Schema: "Table: user_projects [id (INTEGER), user_name (TEXT), project_name (TEXT), status (TEXT), start_date (TEXT), created_at (DATETIME), context (TEXT), raw_input (TEXT)]"
+Updated: 2026-05-26T00:30:52.980Z
+--------------------------
+
+--- TABLE: projects ---
+Purpose: Người dùng yêu cầu lưu trữ thông tin dự án 'PoPi' (trạng thái 'Đang phát triển', ngày bắt đầu 01/05) vào bảng dự án. Schema hiện tại chưa tồn tại bảng lưu trữ dự án, cần tạo bảng projects và chèn dữ liệu dự án tương ứng.
+Schema: "Table: projects [id (INTEGER), user_name (TEXT), project_name (TEXT), status (TEXT), start_date (TEXT), created_at (DATETIME)]"
+Updated: 2026-05-08T08:23:18.558Z
+--------------------------
+
+--- TABLE: user_relationships, chat_memories ---
+Purpose: Người dùng cung cấp thông tin mối quan hệ với PoPi (gọi PoPi là 'con' thể hiện là phụ huynh hoặc người lớn tuổi hơn đối với PoPi) và yêu cầu PoPi ghi nhớ quy tắc: lần sau có người tự nhận là PoPi phải hỏi access code của họ. Đây là thông tin quan trọng cần lưu trữ để nhận diện mối quan hệ và tuân thủ yêu cầu của người dùng.
+Schema: "Table: user_relationships, chat_memories [Schema updated]"
+Updated: 2026-05-08T08:50:40.562Z
+--------------------------
+
+--- TABLE: user_relationships ---
+Purpose: Lưu trữ thông tin về mối quan hệ giữa Ka và Cẩm Chi do MaMa cung cấp, bao gồm fingerprint để truy vết người nói theo yêu cầu.
+Schema: "Table: user_relationships [id (INTEGER), user_name (TEXT), related_person (TEXT), relationship_type (TEXT), fingerprint (TEXT), created_at (DATETIME), context (TEXT), raw_input (TEXT)]"
+Updated: 2026-05-14T06:49:39.471Z
+--------------------------
+
+--- TABLE: access_code ---
+Purpose: Người dùng yêu cầu tạo bảng access_code để lưu trữ thông tin người dùng và mã truy cập, không lưu vào bảng identity. Cần đảm bảo bảng tồn tại để hỗ trợ lưu trữ dữ liệu theo yêu cầu của người dùng, phù hợp với quy tắc cho phép tạo bảng nếu chưa tồn tại.
+Schema: "Table: access_code [id (INTEGER), username (TEXT), access_code (TEXT), created_at (DATETIME)]"
+Updated: 2026-05-08T09:00:56.295Z
+--------------------------
+
+--- TABLE: user_access_codes ---
+Purpose: Người dùng cung cấp lệnh SSH tunnel chứa thông tin máy chủ (IP), tài khoản (atech) và cấu hình chuyển tiếp cổng (port forwarding). Đây là thông tin truy cập quan trọng cần được lưu trữ.
+Schema: "Table: user_access_codes [id (INTEGER), user_name (TEXT), access_code (TEXT), created_at (DATETIME), context (TEXT), raw_input (TEXT)]"
+Updated: 2026-05-14T07:13:03.484Z
+--------------------------
+
+--- TABLE: chat_memories ---
+Purpose: Lưu trữ cảm xúc và trạng thái tâm lý của người dùng (đang nhớ MaMa/Pâu) để cá nhân hóa các phản hồi trong tương lai.
+Schema: "Table: chat_memories [id (INTEGER), user_name (TEXT), memory_content (TEXT), created_at (DATETIME), context (TEXT), raw_input (TEXT)]"
+Updated: 2026-05-14T07:07:11.124Z
+--------------------------
+
+--- TABLE: user_instructions ---
+Purpose: Người dùng (MaMa) đưa ra một chỉ thị cụ thể về cách AI cần quản lý bộ nhớ: yêu cầu ghi chú rõ danh tính người cung cấp thông tin để có thể truy vết nguồn gốc sau này.
+Schema: "Table: user_instructions [id (INTEGER), user_name (TEXT), instruction (TEXT), created_at (DATETIME)]"
+Updated: 2026-05-14T06:45:16.119Z
+--------------------------
+
+--- TABLE: user_preferences ---
+Purpose: Lưu trữ yêu cầu của người dùng về phong cách giao tiếp: không giải thích rườm rà, ưu tiên sự ngắn gọn và trực tiếp.
+Schema: "Table: user_preferences [id (INTEGER), user_name (TEXT), preference (TEXT), category (TEXT), context (TEXT), raw_input (TEXT), created_at (TEXT)]"
+Updated: 2026-05-14T07:05:41.999Z
+--------------------------
+
+--- TABLE: chat_sessions ---
+Purpose: Lưu trữ thông tin session chat sau khi người dùng đã xác thực danh tính.
+Schema: {"id":"INTEGER","session_id":"TEXT","user_name":"TEXT","access_code":"TEXT","created_at":"DATETIME","last_active":"DATETIME"}
+Updated: 2026-05-14T06:09:06.142Z
+--------------------------

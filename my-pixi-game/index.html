@@ -18,12 +18,16 @@
     <div id="ui-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 100; display: none;">
       <h2 style="margin-top: 0;">Vào Game</h2>
       <input type="text" id="game-id" placeholder="Nhập Game ID (Tên)" style="padding: 10px; margin-bottom: 10px; width: 200px; display: block; border: 1px solid #ccc; border-radius: 5px;">
+      <input type="text" id="access-code" placeholder="Access Code (tùy chọn)" style="padding: 10px; margin-bottom: 10px; width: 200px; display: block; border: 1px solid #ccc; border-radius: 5px;">
       <button id="create-btn" style="padding: 10px 20px; background: #1099bb; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Tạo nhân vật</button>
     </div>
     <div id="app"></div>
 
     <!-- Nút Debug va chạm -->
     <button id="debug-btn" style="position: absolute; bottom: 20px; right: 20px; padding: 10px 15px; background: rgba(0,0,0,0.6); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;">Show Colliders (H)</button>
+
+    <!-- Nút Tele Neural -->
+    <button id="tele-neural-btn" style="position: absolute; bottom: 20px; right: 200px; padding: 10px 15px; background: rgba(155, 89, 182, 0.8); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;">⚡ Tele Neural</button>
 
     <!-- UI HP/MP cố định góc trên bên trái -->
     <div id="stats-panel" style="position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; border: 2px solid #1099bb; z-index: 150; font-family: Arial, sans-serif; min-width: 200px;">

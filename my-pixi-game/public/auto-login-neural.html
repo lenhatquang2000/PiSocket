@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>my-pixi-game - PNeural Auto-Login</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // Auto-login data
+      window.autoLoginData = {
+        username: 'PNeural',
+        authLevel: 'SUPREME_ADMIN',
+        playerState: null,
+        autoLogin: true
+      };
+      // Load main game
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = '/src/main.js';
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
