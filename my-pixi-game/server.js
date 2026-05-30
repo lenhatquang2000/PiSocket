@@ -5,11 +5,23 @@ import path from "path";
 import { fileURLToPath } from 'url';
 import { initDatabase } from './Server/database.js';
 import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType, verifyAccessCodeLogin, setAccountAuthLevel, getUserAuthLevel, generateAccessCode, listAccessCodes, revokeAccessCode, getNPCs, addNPC, moveNPC } from './Server/playerManager.js';
+import { checkMovement, getCollidableObjectsFromChunk } from './Server/collisionSystem.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const players = {};
+
+// Server-Authoritative Movement System
+const TICK_RATE = 30; // 30 ticks per second
+const TICK_INTERVAL = 1000 / TICK_RATE; // ~33.33ms per tick
+const PLAYER_SPEED = 4; // pixels per tick (server-controlled speed)
+
+// Player input states (chỉ lưu input, không lưu vị trí)
+const playerInputs = {}; // { socketId: { direction: 'north' | 'south' | ... | null } }
+
+// Loaded chunks for collision detection
+const loadedChunks = new Map(); // Map<"x,y", chunkData>
 
 // PNeural AI Bot - Virtual Player
 const pNeuralBot = {
@@ -129,6 +141,125 @@ loadPNeuralState();
 setInterval(() => {
   pNeuralWalkAround();
 }, 5000);
+
+// ============================================
+// SERVER TICK SYSTEM - 30 ticks per second
+// ============================================
+setInterval(() => {
+  // Process all player movements based on their input
+  for (const socketId in playerInputs) {
+    const input = playerInputs[socketId];
+    const player = players[socketId];
+    
+    if (!player || !input) {
+      continue;
+    }
+    
+    // Check if player has direction input
+    if (!input.direction) {
+      player.isMoving = false;
+      continue;
+    }
+    
+    // Calculate movement based on direction (8-directional)
+    let dx = 0;
+    let dy = 0;
+    
+    switch (input.direction) {
+      case 'north':
+        dy = -PLAYER_SPEED;
+        break;
+      case 'south':
+        dy = PLAYER_SPEED;
+        break;
+      case 'east':
+        dx = PLAYER_SPEED;
+        break;
+      case 'west':
+        dx = -PLAYER_SPEED;
+        break;
+      case 'north-east':
+        dx = PLAYER_SPEED * 0.707;
+        dy = -PLAYER_SPEED * 0.707;
+        break;
+      case 'north-west':
+        dx = -PLAYER_SPEED * 0.707;
+        dy = -PLAYER_SPEED * 0.707;
+        break;
+      case 'south-east':
+        dx = PLAYER_SPEED * 0.707;
+        dy = PLAYER_SPEED * 0.707;
+        break;
+      case 'south-west':
+        dx = -PLAYER_SPEED * 0.707;
+        dy = PLAYER_SPEED * 0.707;
+        break;
+    }
+    
+    // Calculate new position
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+    
+    // Get collidable objects from loaded chunks
+    const collidableObjects = [];
+    for (const [key, chunkData] of loadedChunks) {
+      const chunkObjects = getCollidableObjectsFromChunk(chunkData);
+      collidableObjects.push(...chunkObjects);
+    }
+    
+    // Check collision and get valid position
+    const movementResult = checkMovement(
+      { x: player.x, y: player.y, scale: 0.7 },
+      newX,
+      newY,
+      collidableObjects
+    );
+    
+    // Update player position (with collision)
+    const oldX = player.x;
+    const oldY = player.y;
+    player.x = movementResult.validX;
+    player.y = movementResult.validY;
+    player.dir = input.direction;
+    
+    // Only set isMoving if player actually moved
+    player.isMoving = (player.x !== oldX || player.y !== oldY);
+    
+    // Update z-index triggers (objects player should be above)
+    player.zIndexTriggers = movementResult.zIndexTriggers || [];
+    
+    // Log z-index triggers (only when changed)
+    if (player.zIndexTriggers.length > 0 && !player.lastZIndexTriggerCount) {
+      console.log(`🎨 Player ${player.name} triggered z-index: ${player.zIndexTriggers.length} objects`);
+      player.lastZIndexTriggerCount = player.zIndexTriggers.length;
+    } else if (player.zIndexTriggers.length === 0 && player.lastZIndexTriggerCount) {
+      console.log(`🎨 Player ${player.name} left z-index trigger zone`);
+      player.lastZIndexTriggerCount = 0;
+    }
+  }
+  
+  // Broadcast updated positions to all clients
+  const playerStates = {};
+  for (const socketId in players) {
+    const player = players[socketId];
+    playerStates[socketId] = {
+      x: player.x,
+      y: player.y,
+      dir: player.dir,
+      isMoving: player.isMoving,
+      name: player.name,
+      zIndexTriggers: player.zIndexTriggers || []
+    };
+  }
+  
+  // Only broadcast if there are players
+  if (Object.keys(playerStates).length > 0) {
+    io.emit('serverTick', playerStates);
+  }
+}, TICK_INTERVAL);
+
+console.log(`🎮 Server tick system started: ${TICK_RATE} ticks/second`);
+
 
 const server = http.createServer((req, res) => {
   // Log mọi request để debug
@@ -725,6 +856,97 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ error: err.message }));
     }
   }
+  // Endpoint để lưu chunk binary file
+  else if (req.method === 'POST' && req.url === '/save-chunk') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const chunkData = JSON.parse(body);
+        const { chunkX, chunkY, width, height, tileSize, objects } = chunkData;
+        
+        // Register chunk for collision detection
+        const chunkKey = `${chunkX},${chunkY}`;
+        loadedChunks.set(chunkKey, chunkData);
+        console.log(`📦 Chunk (${chunkX}, ${chunkY}) registered: ${objects.length} objects`);
+        
+        const chunkFileName = `chunk_${chunkX}_${chunkY}.bin`;
+        const chunksDir = path.join(__dirname, 'public/assets/Map/chunks');
+        
+        // Create chunks directory if it doesn't exist
+        if (!fs.existsSync(chunksDir)) {
+          fs.mkdirSync(chunksDir, { recursive: true });
+        }
+        
+        const chunkFilePath = path.join(chunksDir, chunkFileName);
+        
+        // Convert chunk data to binary format
+        const buffer = [];
+        
+        function writeInt32(value) {
+          const buf = Buffer.allocUnsafe(4);
+          buf.writeInt32LE(value, 0);
+          buffer.push(buf);
+        }
+        
+        function writeFloat32(value) {
+          const buf = Buffer.allocUnsafe(4);
+          buf.writeFloatLE(value, 0);
+          buffer.push(buf);
+        }
+        
+        function writeUInt8(value) {
+          const buf = Buffer.allocUnsafe(1);
+          buf.writeUInt8(value, 0);
+          buffer.push(buf);
+        }
+        
+        function writeString(str) {
+          const strBuf = Buffer.from(str, 'utf8');
+          writeInt32(strBuf.length);
+          buffer.push(strBuf);
+        }
+        
+        // Write chunk metadata
+        writeInt32(chunkX);
+        writeInt32(chunkY);
+        writeInt32(width);
+        writeInt32(height);
+        writeInt32(tileSize);
+        writeInt32(objects.length);
+        
+        // Write objects
+        objects.forEach((obj) => {
+          writeInt32(obj.x);
+          writeInt32(obj.y);
+          writeString(obj.path);
+          writeUInt8(obj.isFree ? 1 : 0);
+          writeFloat32(obj.rotation || 0);
+          writeFloat32(obj.scale || 1);
+          writeInt32(obj.zIndex || 0);
+        });
+        
+        // Combine all buffers
+        const finalBuffer = Buffer.concat(buffer);
+        
+        // Write to file
+        fs.writeFileSync(chunkFilePath, finalBuffer);
+        
+        console.log(`✅ Saved chunk (${chunkX}, ${chunkY}): ${chunkFileName} (${(finalBuffer.length / 1024).toFixed(2)} KB)`);
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          success: true, 
+          fileName: chunkFileName,
+          size: `${(finalBuffer.length / 1024).toFixed(2)} KB`
+        }));
+      } catch (err) {
+        console.error("❌ Lỗi save chunk:", err);
+        res.writeHead(500);
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+  }
   // Auto-login endpoint cho PNeural - username "PNeural" - serve HTML
   else if (req.method === 'GET' && req.url === '/auto-login-neural') {
     try {
@@ -903,6 +1125,11 @@ io.on("connection", (socket) => {
         moveSpeed: 4
       }
     };
+    
+    // Initialize player input state
+    playerInputs[socket.id] = {
+      direction: null // null = not moving
+    };
 
     // Gửi PNeural bot cho client sau khi họ đã join game
     socket.emit('newPlayer', {
@@ -925,15 +1152,31 @@ io.on("connection", (socket) => {
     console.log(`Player ${playerData.name} (${socket.id}) joined the game.`);
   });
 
-  // Cập nhật vị trí (chỉ movement, không có attack)
+  // ============================================
+  // NEW: Player Input System (chỉ gửi hướng di chuyển)
+  // ============================================
+  socket.on("playerInput", (inputData) => {
+    if (playerInputs[socket.id]) {
+      // Client chỉ gửi direction: 'north' | 'south' | 'east' | 'west' | 'north-east' | ... | null
+      playerInputs[socket.id].direction = inputData.direction;
+      
+      // Update isMoving state
+      if (players[socket.id]) {
+        players[socket.id].isMoving = inputData.direction !== null;
+      }
+    }
+  });
+
+  // OLD: Cập nhật vị trí (DEPRECATED - giữ lại để tương thích ngược)
   socket.on("playerMovement", (movementData) => {
-    if (players[socket.id]) {
-      players[socket.id].x = movementData.x;
-      players[socket.id].y = movementData.y;
+    // Không còn tin tưởng vị trí từ client nữa
+    // Chỉ cập nhật direction và isMoving
+    if (players[socket.id] && playerInputs[socket.id]) {
+      playerInputs[socket.id].direction = movementData.isMoving ? movementData.dir : null;
       players[socket.id].dir = movementData.dir;
       players[socket.id].isMoving = movementData.isMoving;
-      players[socket.id].name = movementData.name; 
-      socket.broadcast.emit("playerMoved", { id: socket.id, ...players[socket.id] });
+      players[socket.id].name = movementData.name;
+      // Không broadcast vị trí nữa - server tick sẽ lo
     }
   });
 
@@ -995,6 +1238,7 @@ io.on("connection", (socket) => {
       }
     }
     delete players[socket.id];
+    delete playerInputs[socket.id]; // Clean up input state
     io.emit("playerDisconnected", socket.id);
   });
 });

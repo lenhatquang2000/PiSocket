@@ -1,8 +1,13 @@
 import { Application, Assets, AnimatedSprite, Container, Text, TextStyle, TilingSprite, Graphics } from 'pixi.js';
 import { io } from "socket.io-client";
 import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
+import { ChunkLoader } from './chunkLoader.js';
+import { renderChunk, unloadChunkRender } from './chunkRenderer.js';
+import { ServerMovementController } from './serverMovement.js';
 
 (async () => {
+    console.log('🎮 [GAME] Starting game initialization...');
+    
     // 0. Kết nối WebSocket
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
     const socket = io(SOCKET_URL);
@@ -10,6 +15,10 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const collidableObjects = []; // Lưu trữ các vật thể có va chạm
     const objectSprites = []; // Lưu trữ sprites của objects để depth sorting
     const farmedTiles = []; // Lưu trữ các ô đất đã đào
+
+    // Initialize Chunk Loader
+    const chunkLoader = new ChunkLoader();
+    console.log('📦 [CHUNK] ChunkLoader initialized');
 
     // --- SOCKET CONNECTION LOGGING ---
     socket.on("connect", () => console.log("✅ Connected to server, id:", socket.id));
@@ -41,6 +50,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const digBaseDir = '/assets/A_cute_chibi_anime_girl/animations/dig/';
     const seedingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/seeding/';
     const sleepBaseDir = '/assets/A_cute_chibi_anime_girl/animations/sleep/';
+    const sleepingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Sleeping/';
 
     // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
@@ -49,6 +59,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const digAnimations = {};
     const seedingAnimations = {};
     const sleepAnimations = {};
+    const sleepingAnimations = {};
     const explosionFrames = [];
 
     const loadingScreen = document.getElementById('loading-screen');
@@ -89,6 +100,14 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${digBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${seedingBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${sleepBaseDir}${dir}/frame_00${i}.png`);
+        // Load sleeping animation
+        // east, south, west có frame 003-015
+        // north, north-east, north-west, south-east, south-west có frame 004-015
+        const startFrame = (dir === 'east' || dir === 'south' || dir === 'west') ? 3 : 4;
+        for (let i = startFrame; i <= 15; i++) {
+            const frameNum = i < 10 ? `00${i}` : `0${i}`;
+            assetsToLoad.push(`${sleepingBaseDir}${dir}/frame_${frameNum}.png`);
+        }
     });
     
     // Tải texture từ worldmap hoặc fallback to old config
@@ -185,6 +204,7 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         const dFrames = [];
         const sFrames = [];
         const slFrames = [];
+        const sleepingFrames = [];
         for (let i = 0; i < 6; i++) {
             wFrames.push(Assets.get(`${walkBaseDir}${dir}/frame_00${i}.png`));
         }
@@ -203,12 +223,21 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         for (let i = 0; i < 9; i++) {
             slFrames.push(Assets.get(`${sleepBaseDir}${dir}/frame_00${i}.png`));
         }
+        // Load sleeping animation frames
+        // east, south, west có frame 003-015
+        // north, north-east, north-west, south-east, south-west có frame 004-015
+        const startFrame = (dir === 'east' || dir === 'south' || dir === 'west') ? 3 : 4;
+        for (let i = startFrame; i <= 15; i++) {
+            const frameNum = i < 10 ? `00${i}` : `0${i}`;
+            sleepingFrames.push(Assets.get(`${sleepingBaseDir}${dir}/frame_${frameNum}.png`));
+        }
         walkAnimations[dir] = wFrames;
         idleAnimations[dir] = iFrames;
         attackAnimations[dir] = aFrames;
         digAnimations[dir] = dFrames;
         seedingAnimations[dir] = sFrames;
         sleepAnimations[dir] = slFrames;
+        sleepingAnimations[dir] = sleepingFrames;
     });
 
     // Load explosion frames
@@ -276,141 +305,26 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         console.error("❌ Lỗi load object collider data by type:", err);
     }
 
-    // === RENDER WORLDMAP (NEW SYSTEM) ===
-    if (worldmapData && submapsData.length > 0) {
-        console.log('🗺️ Rendering worldmap with submaps...');
+    // === RENDER CHUNKS (NEW SYSTEM) ===
+    console.log('🗺️ [CHUNK] Using chunk-based map loading system');
+    
+    // Load 9 chunks xung quanh spawn point (0, 0)
+    console.log('📦 [CHUNK] Loading initial 3x3 chunk grid...');
+    const spawnX = worldmapData?.spawnPoint?.x || 500;
+    const spawnY = worldmapData?.spawnPoint?.y || 500;
+    
+    const initialLoadResult = await chunkLoader.loadChunksAroundPlayer(spawnX, spawnY);
+    
+    if (initialLoadResult.loaded.length > 0) {
+        console.log(`✅ [CHUNK] Loaded ${initialLoadResult.loaded.length} initial chunks`);
+        for (const chunk of initialLoadResult.loaded) {
+            await renderChunk(chunk, world, objectSprites, collidableObjects, debugGraphics, collisionData);
+        }
+    } else {
+        console.error('❌ [CHUNK] Failed to load initial chunks');
         
-        // Render từng submap đã được đặt trong worldmap
-        worldmapData.placedSubmaps.forEach(placedSubmap => {
-            const submap = submapsData.find(s => s.name === placedSubmap.submapName);
-            if (!submap) {
-                console.warn(`⚠️ Submap "${placedSubmap.submapName}" not found`);
-                return;
-            }
-            
-            console.log(`📍 Placing submap "${submap.name}" at (${placedSubmap.x}, ${placedSubmap.y})`);
-            console.log(`   Submap tileSize: ${submap.tileSize}, gridType: ${submap.gridType}`);
-            console.log(`   Total objects: ${submap.objects ? submap.objects.length : 0}`);
-            
-            // Render objects trong submap
-            if (submap.objects && submap.objects.length > 0) {
-                submap.objects.forEach((obj, index) => {
-                    const objTexture = Assets.get(obj.path);
-                    if (!objTexture) {
-                        console.warn(`⚠️ Texture not found: ${obj.path}`);
-                        return;
-                    }
-                    
-                    const sprite = new AnimatedSprite([objTexture]);
-                    
-                    // Tính toán vị trí trong world space
-                    // obj.x, obj.y là vị trí trong submap (grid coordinates hoặc pixel coordinates)
-                    // placedSubmap.x, placedSubmap.y là vị trí submap trong worldmap
-                    let worldX, worldY;
-                    
-                    if (obj.isFree) {
-                        // Free placement - obj.x, obj.y là pixel coordinates
-                        worldX = placedSubmap.x + obj.x;
-                        worldY = placedSubmap.y + obj.y;
-                        console.log(`   Object ${index} (FREE): ${obj.path}`);
-                        console.log(`      Local pos: (${obj.x}, ${obj.y})`);
-                        console.log(`      World pos: (${worldX}, ${worldY})`);
-                    } else {
-                        // Grid placement - obj.x, obj.y là grid coordinates
-                        worldX = placedSubmap.x + (obj.x * submap.tileSize);
-                        worldY = placedSubmap.y + (obj.y * submap.tileSize);
-                        console.log(`   Object ${index} (GRID): ${obj.path}`);
-                        console.log(`      Grid pos: (${obj.x}, ${obj.y})`);
-                        console.log(`      TileSize: ${submap.tileSize}`);
-                        console.log(`      World pos: (${worldX}, ${worldY})`);
-                    }
-                    
-                    sprite.x = worldX;
-                    sprite.y = worldY;
-                    sprite.anchor.set(0, 0); // Use top-left anchor to match editor
-                    
-                    // Use original image size (from submap editor)
-                    const scale = obj.scale || 1.0; // Use scale from editor if available
-                    sprite.scale.set(scale);
-                    
-                    // Apply rotation if exists
-                    if (obj.rotation) {
-                        sprite.rotation = obj.rotation * Math.PI / 180;
-                    }
-                    
-                    sprite.isTopdownGround = obj.path.startsWith('/assets/Map/topdown/') || obj.path.startsWith('/assets/Farming1/2D_game_asset_cultivated_farm');
-                    sprite.editorZIndex = (obj.zIndex || 1) * 100; // Store editor zIndex as offset
-                    sprite.zIndex = sprite.isTopdownGround ? -1000000 : (obj.zIndex ?? 1); // Objects above ground
-                    world.addChild(sprite);
-                    objectSprites.push(sprite);
-                    
-                    // LƯU DỮ LIỆU VA CHẠM CHI TIẾT
-                    const hitData = collisionData[obj.path];
-                    if (hitData) {
-                        let hitPoints, zIndexUpPoints, zIndexDownPoints, triggerZonePoints;
-                        if (Array.isArray(hitData)) {
-                            hitPoints = hitData;
-                            zIndexUpPoints = [];
-                            zIndexDownPoints = [];
-                            triggerZonePoints = [];
-                        } else {
-                            hitPoints = hitData.normal || [];
-                            zIndexUpPoints = hitData.z_index_up || [];
-                            zIndexDownPoints = hitData.z_index_down || [];
-                            triggerZonePoints = hitData.trigger_zone || [];
-                        }
-
-                        collidableObjects.push({
-                            x: sprite.x,
-                            y: sprite.y,
-                            scale: scale,
-                            anchor: sprite.anchor,
-                            points: hitPoints,
-                            zIndexUpPoints: zIndexUpPoints,
-                            zIndexDownPoints: zIndexDownPoints,
-                            triggerZonePoints: triggerZonePoints,
-                            width: objTexture.width,
-                            height: objTexture.height,
-                            sprite: sprite,
-                            path: obj.path // Thêm path để debug
-                        });
-
-                        // Vẽ Debug colliders
-                        const g = new Graphics();
-                        g.beginFill(0xff0000, 0.5);
-                        hitPoints.forEach(p => {
-                            const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
-                            const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
-                            g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
-                        });
-                        if (zIndexUpPoints.length > 0) {
-                            g.beginFill(0x00ff00, 0.5);
-                            zIndexUpPoints.forEach(p => {
-                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
-                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
-                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
-                            });
-                        }
-                        if (zIndexDownPoints.length > 0) {
-                            g.beginFill(0xffff00, 0.5);
-                            zIndexDownPoints.forEach(p => {
-                                const px = (p.x - objTexture.width * sprite.anchor.x) * scale;
-                                const py = (p.y - objTexture.height * sprite.anchor.y) * scale;
-                                g.drawRect(sprite.x + px, sprite.y + py, scale, scale);
-                            });
-                        }
-                        g.visible = false;
-                        debugGraphics.addChild(g);
-                        sprite.debugBounds = g;
-                    }
-                });
-            }
-        });
-        
-        console.log(`✅ Rendered ${worldmapData.placedSubmaps.length} submaps`);
-    }
-    // === FALLBACK: RENDER OLD MAP SYSTEM ===
-    else if (mapConfig && mapConfig.zones) {
+        // === FALLBACK: RENDER OLD MAP SYSTEM ===
+        if (mapConfig && mapConfig.zones) {
         console.log('🗺️ Rendering old map system (zones)...');
         mapConfig.zones.forEach(zone => {
             const texture = Assets.get(zone.texture);
@@ -513,7 +427,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 }
             }
         });
-    }
+        } // end if (mapConfig && mapConfig.zones)
+    } // end else (fallback)
 
     // Nút Bật/Tắt Debug bằng phím H hoặc Nút trên màn hình
     const debugBtn = document.getElementById('debug-btn');
@@ -1477,6 +1392,85 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     const accessCodeInput = document.getElementById('access-code');
     const createBtn = document.getElementById('create-btn');
 
+    // === TELEPORT CHUNK FUNCTIONALITY ===
+    const chunkXInput = document.getElementById('chunk-x-input');
+    const chunkYInput = document.getElementById('chunk-y-input');
+    const teleportChunkBtn = document.getElementById('teleport-chunk-btn');
+    const currentChunkText = document.getElementById('current-chunk-text');
+    const chunkStatusText = document.getElementById('chunk-status-text');
+
+    // Update current chunk display
+    const updateChunkUI = () => {
+        if (!characterContainer || !characterContainer.visible) return;
+        
+        const { chunkX, chunkY } = chunkLoader.worldToChunk(characterContainer.x, characterContainer.y);
+        if (currentChunkText) {
+            currentChunkText.textContent = `Current: Chunk (${chunkX}, ${chunkY})`;
+        }
+        
+        const isLoaded = chunkLoader.isChunkLoaded(chunkX, chunkY);
+        if (chunkStatusText) {
+            chunkStatusText.textContent = isLoaded ? '✅ Loaded' : '❌ Not Loaded';
+            chunkStatusText.style.color = isLoaded ? '#2ecc71' : '#e74c3c';
+        }
+    };
+
+    // Teleport to chunk event listener
+    if (teleportChunkBtn) {
+        teleportChunkBtn.addEventListener('click', async () => {
+            const targetChunkX = parseInt(chunkXInput.value) || 0;
+            const targetChunkY = parseInt(chunkYInput.value) || 0;
+            
+            console.log(`🚀 [TELEPORT] Teleporting to chunk (${targetChunkX}, ${targetChunkY})...`);
+            
+            try {
+                // Load target chunk if not already loaded
+                const targetChunk = await chunkLoader.loadChunk(targetChunkX, targetChunkY);
+                
+                if (targetChunk) {
+                    // Render chunk if successfully loaded
+                    await renderChunk(targetChunk, world, objectSprites, collidableObjects, debugGraphics, collisionData);
+                    
+                    // Calculate world position for chunk center
+                    const chunkWorldX = targetChunkX * targetChunk.width * targetChunk.tileSize;
+                    const chunkWorldY = targetChunkY * targetChunk.height * targetChunk.tileSize;
+                    const centerX = chunkWorldX + (targetChunk.width * targetChunk.tileSize) / 2;
+                    const centerY = chunkWorldY + (targetChunk.height * targetChunk.tileSize) / 2;
+                    
+                    // Teleport player to chunk center
+                    characterContainer.x = centerX;
+                    characterContainer.y = centerY;
+                    
+                    // Sync with server movement controller
+                    if (window.serverMovement) {
+                        window.serverMovement.syncPosition(centerX, centerY);
+                    }
+                    
+                    console.log(`✅ [TELEPORT] Player teleported to chunk (${targetChunkX}, ${targetChunkY}) at world position (${centerX}, ${centerY})`);
+                    
+                    // Update UI
+                    updateChunkUI();
+                    
+                    // Send position update to server (for backward compatibility)
+                    socket.emit("playerMovement", {
+                        x: characterContainer.x,
+                        y: characterContainer.y,
+                        dir: currentDir,
+                        isMoving: false,
+                        name: myGameId
+                    });
+                    
+                } else {
+                    console.error(`❌ [TELEPORT] Failed to load chunk (${targetChunkX}, ${targetChunkY})`);
+                    alert(`❌ Chunk (${targetChunkX}, ${targetChunkY}) not found!`);
+                }
+            } catch (err) {
+                console.error(`❌ [TELEPORT] Error:`, err);
+                alert(`❌ Teleport failed: ${err.message}`);
+            }
+        });
+    }
+
     // Auto-login function
     async function autoLogin(username, accessCode = '') {
         try {
@@ -1638,6 +1632,10 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
         characterContainer.visible = true; // Hiện nhân vật
         isGameStarted = true;
 
+        // Initialize server movement controller
+        window.serverMovement = new ServerMovementController(socket, characterContainer);
+        console.log('🎮 Server movement controller initialized');
+
         // Hiển thị UI chọn cây trồng
         const cropPanel = document.getElementById('crop-selection-panel');
         if (cropPanel) {
@@ -1730,6 +1728,49 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                         p.sprite.textures = idleAnimations[data.dir];
                         p.sprite.animationSpeed = 0.05;
                         p.sprite.play();
+                    }
+                }
+            }
+        }
+    });
+
+    // ============================================
+    // Server Tick - Update all players positions
+    // ============================================
+    socket.on("serverTick", (playerStates) => {
+        // Update all other players (not self - serverMovement handles self)
+        for (const socketId in playerStates) {
+            if (socketId === socket.id) continue; // Skip self
+            
+            const state = playerStates[socketId];
+            const p = otherPlayers[socketId];
+            
+            if (p) {
+                // Direct position update from server
+                p.container.x = state.x;
+                p.container.y = state.y;
+                
+                // Update name tag
+                p.tag.text = state.name || socketId;
+                
+                // Update direction and movement state
+                p.currentDir = state.dir;
+                p.currentIsMoving = state.isMoving;
+                
+                // Update animation (only if not attacking)
+                if (!p.isAttacking) {
+                    if (state.isMoving) {
+                        if (p.sprite.textures !== walkAnimations[state.dir]) {
+                            p.sprite.textures = walkAnimations[state.dir];
+                            p.sprite.animationSpeed = 0.15;
+                            p.sprite.play();
+                        }
+                    } else {
+                        if (p.sprite.textures !== idleAnimations[state.dir]) {
+                            p.sprite.textures = idleAnimations[state.dir];
+                            p.sprite.animationSpeed = 0.05;
+                            p.sprite.play();
+                        }
                     }
                 }
             }
@@ -1833,65 +1874,85 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
         
-        // Xử lý phím V - Kỹ năng Farming (Dig)
-        if (e.code === 'KeyV' && isGameStarted && !isDigging && !isAttacking && !isSeeding) {
-            // Tìm skill Farming
-            const farmingSkill = playerSkills.find(s => s.skill_type === 'farming');
-            if (!farmingSkill) {
-                console.warn("⚠️ Bạn chưa có kỹ năng Farming!");
+        // Xử lý phím V - Kỹ năng Sleep (Ngủ)
+        if (e.code === 'KeyV' && isGameStarted && !isDigging && !isAttacking && !isSeeding && !isSleeping) {
+            console.log('🔍 [SLEEP DEBUG] Phím V được nhấn');
+            
+            // Tìm skill Sleep
+            const sleepSkill = playerSkills.find(s => s.skill_type === 'sleep');
+            console.log('🔍 [SLEEP DEBUG] Sleep skill:', sleepSkill);
+            
+            if (!sleepSkill) {
+                console.warn("⚠️ Bạn chưa có kỹ năng Sleep!");
                 return;
             }
 
-            const cooldownData = skillCooldowns[farmingSkill.skill_id];
+            const cooldownData = skillCooldowns[sleepSkill.skill_id];
+            console.log('🔍 [SLEEP DEBUG] Cooldown data:', cooldownData);
+            
             const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
 
             // Kiểm tra cooldown
             if (remaining > 0) {
-                console.warn(`⏱️ Kỹ năng Farming đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                console.warn(`⏱️ Kỹ năng Sleep đang hồi chiêu: ${remaining.toFixed(1)}s`);
                 return;
             }
 
-            // Kiểm tra MP
-            if (playerStats.mp < farmingSkill.mp_cost) {
-                console.warn(`❌ Không đủ MP! Cần ${farmingSkill.mp_cost}, hiện có ${playerStats.mp}`);
+            // Kiểm tra MP (sleep không tốn MP nhưng vẫn check)
+            if (playerStats.mp < sleepSkill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${sleepSkill.mp_cost}, hiện có ${playerStats.mp}`);
                 return;
             }
 
-            // Trừ MP
-            playerStats.mp -= farmingSkill.mp_cost;
-            console.log(`✅ Sử dụng Farming! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+            // Trừ MP (nếu có)
+            if (sleepSkill.mp_cost > 0) {
+                playerStats.mp -= sleepSkill.mp_cost;
+                console.log(`✅ Sử dụng Sleep! MP: ${playerStats.mp}/${playerStats.maxMp}`);
+            } else {
+                console.log(`✅ Sử dụng Sleep! (Không tốn MP)`);
+            }
 
             // Ghi nhận sử dụng skill
             fetch(`${SOCKET_URL}/use-skill`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: myGameId, skillId: farmingSkill.skill_id })
+                body: JSON.stringify({ username: myGameId, skillId: sleepSkill.skill_id })
             }).catch(err => console.error("❌ Lỗi record skill:", err));
 
             // Reset cooldown
-            skillCooldowns[farmingSkill.skill_id].elapsed = 0;
+            skillCooldowns[sleepSkill.skill_id].elapsed = 0;
+            console.log('🔍 [SLEEP DEBUG] Cooldown reset');
 
-            // Trigger animation dig
-            isDigging = true;
+            // Trigger animation sleep (chạy 1 lần)
+            isSleeping = true;
             isMoving = false;
             
-            character.textures = digAnimations[currentDir];
-            character.animationSpeed = 0.15;
+            console.log('🔍 [SLEEP DEBUG] Current direction:', currentDir);
+            console.log('🔍 [SLEEP DEBUG] Sleep animations:', sleepAnimations);
+            console.log('🔍 [SLEEP DEBUG] Sleep animation for direction:', sleepAnimations[currentDir]);
+            
+            character.textures = sleepAnimations[currentDir];
+            character.animationSpeed = 0.2;
             character.loop = false;
             character.gotoAndPlay(0);
+            
+            console.log('🔍 [SLEEP DEBUG] Sleep animation started');
+            
+            // Sau khi animation sleep kết thúc, chuyển sang sleeping (lặp liên tục)
             character.onComplete = () => {
-                isDigging = false;
-                character.textures = idleAnimations[currentDir];
-                character.animationSpeed = 0.05;
+                console.log('🔍 [SLEEP DEBUG] Sleep animation completed, switching to sleeping loop');
+                
+                // Chuyển sang animation sleeping và lặp liên tục
+                character.textures = sleepingAnimations[currentDir];
+                character.animationSpeed = 0.1;
                 character.loop = true;
-                character.play();
+                character.gotoAndPlay(0);
+                
+                console.log('🔍 [SLEEP DEBUG] Sleeping animation started (looping)');
             };
 
-            // Tạo ô đất đã đào tại vị trí player
-            createFarmedTile(characterContainer.x, characterContainer.y);
-
-            // Gửi event dig cho người chơi khác
-            socket.emit("playerDig", {
+            // Gửi event sleep cho người chơi khác
+            socket.emit("playerSleep", {
                 x: characterContainer.x,
                 y: characterContainer.y,
                 dir: currentDir
@@ -1996,82 +2057,66 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
                 cropName: selectedCropType.display_name
             });
         }
-
-        // Xử lý phím F - Kỹ năng Sleep (Ngủ)
+        
+        // Xử lý phím F - Kỹ năng Farming (Dig)
         if (e.code === 'KeyF' && isGameStarted && !isDigging && !isAttacking && !isSeeding && !isSleeping) {
-            console.log('🔍 [SLEEP DEBUG] Phím F được nhấn');
-            
-            // Tìm skill Sleep
-            const sleepSkill = playerSkills.find(s => s.skill_type === 'sleep');
-            console.log('🔍 [SLEEP DEBUG] Sleep skill:', sleepSkill);
-            
-            if (!sleepSkill) {
-                console.warn("⚠️ Bạn chưa có kỹ năng Sleep!");
+            // Tìm skill Farming
+            const farmingSkill = playerSkills.find(s => s.skill_type === 'farming');
+            if (!farmingSkill) {
+                console.warn("⚠️ Bạn chưa có kỹ năng Farming!");
                 return;
             }
 
-            const cooldownData = skillCooldowns[sleepSkill.skill_id];
-            console.log('🔍 [SLEEP DEBUG] Cooldown data:', cooldownData);
-            
+            const cooldownData = skillCooldowns[farmingSkill.skill_id];
             const remaining = Math.max(0, cooldownData.cooldownTime - cooldownData.elapsed);
 
             // Kiểm tra cooldown
             if (remaining > 0) {
-                console.warn(`⏱️ Kỹ năng Sleep đang hồi chiêu: ${remaining.toFixed(1)}s`);
+                console.warn(`⏱️ Kỹ năng Farming đang hồi chiêu: ${remaining.toFixed(1)}s`);
                 return;
             }
 
-            // Kiểm tra MP (sleep không tốn MP nhưng vẫn check)
-            if (playerStats.mp < sleepSkill.mp_cost) {
-                console.warn(`❌ Không đủ MP! Cần ${sleepSkill.mp_cost}, hiện có ${playerStats.mp}`);
+            // Kiểm tra MP
+            if (playerStats.mp < farmingSkill.mp_cost) {
+                console.warn(`❌ Không đủ MP! Cần ${farmingSkill.mp_cost}, hiện có ${playerStats.mp}`);
                 return;
             }
 
-            // Trừ MP (nếu có)
-            if (sleepSkill.mp_cost > 0) {
-                playerStats.mp -= sleepSkill.mp_cost;
-                console.log(`✅ Sử dụng Sleep! MP: ${playerStats.mp}/${playerStats.maxMp}`);
-            } else {
-                console.log(`✅ Sử dụng Sleep! (Không tốn MP)`);
-            }
+            // Trừ MP
+            playerStats.mp -= farmingSkill.mp_cost;
+            console.log(`✅ Sử dụng Farming! MP: ${playerStats.mp}/${playerStats.maxMp}`);
 
             // Ghi nhận sử dụng skill
             fetch(`${SOCKET_URL}/use-skill`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: myGameId, skillId: sleepSkill.skill_id })
+                body: JSON.stringify({ username: myGameId, skillId: farmingSkill.skill_id })
             }).catch(err => console.error("❌ Lỗi record skill:", err));
 
             // Reset cooldown
-            skillCooldowns[sleepSkill.skill_id].elapsed = 0;
-            console.log('🔍 [SLEEP DEBUG] Cooldown reset');
+            skillCooldowns[farmingSkill.skill_id].elapsed = 0;
 
-            // Trigger animation sleep
-            isSleeping = true;
+            // Trigger animation dig
+            isDigging = true;
             isMoving = false;
             
-            console.log('🔍 [SLEEP DEBUG] Current direction:', currentDir);
-            console.log('🔍 [SLEEP DEBUG] Sleep animations:', sleepAnimations);
-            console.log('🔍 [SLEEP DEBUG] Sleep animation for direction:', sleepAnimations[currentDir]);
-            
-            character.textures = sleepAnimations[currentDir];
-            character.animationSpeed = 0.2;
+            character.textures = digAnimations[currentDir];
+            character.animationSpeed = 0.15;
             character.loop = false;
             character.gotoAndPlay(0);
-            
-            console.log('🔍 [SLEEP DEBUG] Animation started');
-            
             character.onComplete = () => {
-                console.log('🔍 [SLEEP DEBUG] Animation completed');
-                isSleeping = false;
+                isDigging = false;
                 character.textures = idleAnimations[currentDir];
                 character.animationSpeed = 0.05;
                 character.loop = true;
                 character.play();
             };
 
-            // Gửi event sleep cho người chơi khác
-            socket.emit("playerSleep", {
+            // Tạo ô đất đã đào tại vị trí player
+            createFarmedTile(characterContainer.x, characterContainer.y);
+
+            // Gửi event dig cho người chơi khác
+            socket.emit("playerDig", {
                 x: characterContainer.x,
                 y: characterContainer.y,
                 dir: currentDir
@@ -2107,92 +2152,49 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 
     let lastSentData = { x: 0, y: 0, dir: '', isMoving: false };
 
-    app.ticker.add((ticker) => {
-        if (!isGameStarted) return; // Chỉ chạy khi đã nhấn nút
+    app.ticker.add(async (ticker) => {
+        if (!isGameStarted) return;
 
+        // ============================================
+        // SERVER-AUTHORITATIVE MOVEMENT - Chỉ gửi input
+        // ============================================
+        
         // Nếu đang tấn công, đang đào, đang trồng cây, hoặc đang ngủ thì không xử lý di chuyển
         if (isAttacking || isDigging || isSeeding || isSleeping) {
-            if (isMoving) {
+            if (window.serverMovement && isMoving) {
+                window.serverMovement.updateInput({}); // Stop movement
                 isMoving = false;
-                // Gửi update để người chơi khác thấy mình đứng yên
-                socket.emit("playerMovement", {
-                    x: characterContainer.x,
-                    y: characterContainer.y,
-                    dir: currentDir,
-                    isMoving: false,
-                    name: myGameId
-                });
             }
             return;
         }
 
-        let dx = 0;
-        let dy = 0;
+        // Update input to server (server sẽ tính toán position)
         let moved = false;
-
-        if (keys['ArrowUp'] || keys['KeyW']) dy -= 1;
-        if (keys['ArrowDown'] || keys['KeyS']) dy += 1;
-        if (keys['ArrowLeft'] || keys['KeyA']) dx -= 1;
-        if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
-
-        if (dx !== 0 || dy !== 0) {
-            moved = true;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            dx /= length;
-            dy /= length;
-
-            const moveSpeed = playerStats.moveSpeed * ticker.deltaTime;
+        if (window.serverMovement) {
+            const isMovingNow = window.serverMovement.updateInput(keys);
+            const newDir = window.serverMovement.getCurrentDirection();
             
-            // Lưu vị trí cũ
-            const oldX = characterContainer.x;
-            const oldY = characterContainer.y;
-
-            // Thử di chuyển theo trục X
-            characterContainer.x += dx * moveSpeed;
-            let collisionX = false;
-            for (let obj of collidableObjects) {
-                if (checkCollision(characterContainer, obj)) {
-                    collisionX = true;
-                    break;
-                }
-            }
-            if (collisionX) characterContainer.x = oldX; // Nếu va chạm thì trả về vị trí cũ
-
-            // Thử di chuyển theo trục Y
-            characterContainer.y += dy * moveSpeed;
-            let collisionY = false;
-            for (let obj of collidableObjects) {
-                if (checkCollision(characterContainer, obj)) {
-                    collisionY = true;
-                    break;
-                }
-            }
-            if (collisionY) characterContainer.y = oldY; // Nếu va chạm thì trả về vị trí cũ
-
-            if (characterContainer.x !== oldX || characterContainer.y !== oldY) {
-                moved = true;
-            }
-
-            let newDir = '';
-            if (dy < 0) newDir += 'north';
-            else if (dy > 0) newDir += 'south';
-
-            if (dx < 0) newDir += (newDir ? '-' : '') + 'west';
-            else if (dx > 0) newDir += (newDir ? '-' : '') + 'east';
-
-            if (!isMoving || currentDir !== newDir) {
+            // Update animation based on movement state
+            if (isMovingNow && (!isMoving || currentDir !== newDir)) {
                 isMoving = true;
                 currentDir = newDir;
                 character.textures = walkAnimations[currentDir];
                 character.animationSpeed = 0.15;
                 character.play();
-            }
-        } else {
-            if (isMoving) {
+            } else if (!isMovingNow && isMoving) {
                 isMoving = false;
                 character.textures = idleAnimations[currentDir];
                 character.animationSpeed = 0.05;
                 character.play();
+            }
+            
+            // Check if position changed (for chunk loading)
+            const oldX = lastSentData.x || characterContainer.x;
+            const oldY = lastSentData.y || characterContainer.y;
+            if (Math.abs(characterContainer.x - oldX) > 10 || Math.abs(characterContainer.y - oldY) > 10) {
+                moved = true;
+                lastSentData.x = characterContainer.x;
+                lastSentData.y = characterContainer.y;
             }
         }
 
@@ -2389,25 +2391,38 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
             });
         }
 
-        // Gửi dữ liệu vị trí lên server nếu có thay đổi (CHỈ movement)
-        if (moved || (lastSentData.isMoving !== isMoving) || (lastSentData.dir !== currentDir)) {
-            socket.emit("playerMovement", {
-                x: characterContainer.x,
-                y: characterContainer.y,
-                dir: currentDir,
-                isMoving: isMoving,
-                name: myGameId
-            });
+        // Update lastSentData and auto-load chunks
+        if (moved) {
             lastSentData = { 
                 x: characterContainer.x, 
                 y: characterContainer.y, 
                 dir: currentDir, 
                 isMoving: isMoving
             };
+
+            // Auto-load chunks khi player di chuyển
+            const streamResult = await chunkLoader.loadChunksAroundPlayer(characterContainer.x, characterContainer.y);
+            
+            // Render newly loaded chunks
+            if (streamResult.loaded.length > 0) {
+                for (const chunk of streamResult.loaded) {
+                    await renderChunk(chunk, world, objectSprites, collidableObjects, debugGraphics, collisionData);
+                }
+            }
+            
+            // Unload far chunks
+            if (streamResult.unloaded.length > 0) {
+                for (const chunk of streamResult.unloaded) {
+                    unloadChunkRender(chunk.x, chunk.y, world, objectSprites, collidableObjects, debugGraphics);
+                }
+            }
         }
 
         // Cập nhật UI HP/MP
         updateStatsUI();
+
+        // Update chunk UI
+        updateChunkUI();
 
         // Cập nhật cooldown skills
         playerSkills.forEach(skill => {

@@ -29,6 +29,30 @@
     <!-- Nút Tele Neural -->
     <button id="tele-neural-btn" style="position: absolute; bottom: 20px; right: 200px; padding: 10px 15px; background: rgba(155, 89, 182, 0.8); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;">⚡ Tele Neural</button>
 
+    <!-- UI Teleport Chunk -->
+    <div id="chunk-teleport-panel" style="position: fixed; bottom: 80px; right: 20px; background: rgba(0, 0, 0, 0.85); padding: 15px; border-radius: 8px; border: 2px solid #e74c3c; z-index: 150; font-family: Arial, sans-serif; min-width: 250px;">
+      <div style="color: #e74c3c; font-weight: bold; margin-bottom: 10px; font-size: 14px; text-align: center;">
+        🗺️ Teleport to Chunk
+      </div>
+      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <div style="flex: 1;">
+          <label style="color: #aaa; font-size: 12px; display: block; margin-bottom: 5px;">Chunk X:</label>
+          <input type="number" id="chunk-x-input" value="0" style="width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #222; color: white; font-size: 14px;">
+        </div>
+        <div style="flex: 1;">
+          <label style="color: #aaa; font-size: 12px; display: block; margin-bottom: 5px;">Chunk Y:</label>
+          <input type="number" id="chunk-y-input" value="0" style="width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #222; color: white; font-size: 14px;">
+        </div>
+      </div>
+      <button id="teleport-chunk-btn" style="width: 100%; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;">
+        🚀 Teleport
+      </button>
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); color: #aaa; font-size: 11px;">
+        <div id="current-chunk-text">Current: Chunk (0, 0)</div>
+        <div id="chunk-status-text" style="margin-top: 5px; color: #2ecc71;">✅ Loaded</div>
+      </div>
+    </div>
+
     <!-- UI HP/MP cố định góc trên bên trái -->
     <div id="stats-panel" style="position: fixed; top: 20px; left: 20px; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; border: 2px solid #1099bb; z-index: 150; font-family: Arial, sans-serif; min-width: 200px;">
       <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">
