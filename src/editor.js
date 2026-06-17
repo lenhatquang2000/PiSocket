@@ -10,6 +10,8 @@ const mapList = document.getElementById('map-list');
 // Import map editors
 import { setupSubmapEditor, setSubmapEditorMode } from './submapEditor.js';
 import { setupWorldmapEditor } from './worldmapEditor.js';
+import { ANIMATION_PATHS } from './config/constants.js';
+
 
 let currentImg = null;
 let currentPath = "";
@@ -128,13 +130,8 @@ copyAllFramesBtn.onclick = async () => {
         console.log("Frames in folder from collisionData:", framesInFolder.length);
 
         // Also add animation paths from constants (for frames not yet in collisionData)
-        const animationPaths = [
-            '/MC/Girls/Mira/animations/Walking-3023122c/',
-            '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/',
-            '/MC/Girls/Mira/animations/Fireball-4a198baf/',
-            '/MC/Girls/Mira/animations/dig/',
-            '/MC/Girls/Mira/animations/seeding/'
-        ];
+        const animationPaths = Object.values(ANIMATION_PATHS);
+
 
         // Add all possible frame paths (8 directions * 30 frames per animation)
         const directions = ['south', 'south-west', 'west', 'north-west', 'north', 'north-east', 'east', 'south-east'];
@@ -319,7 +316,8 @@ const loadCollisionData = async () => {
 // Tải danh sách vật thể
 const loadLists = () => {
     // Player collider
-    const playerPath = '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/south/frame_000.png';
+    const playerPath = '/MC/Girls/Mira/animations/Breathing/south/frame_000.png';
+
     createItem(playerPath, document.getElementById('player-list'), 'Player Collider');
 
     // ... (giữ nguyên)

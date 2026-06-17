@@ -1,5 +1,5 @@
 // Chunk Loader - Load binary chunk files dynamically
-import { getObjectCategories } from './config/objectCategories.js';
+import { getObjectCategories } from '../../config/objectCategories.js';
 
 export class ChunkLoader {
   constructor() {
