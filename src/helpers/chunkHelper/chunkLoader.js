@@ -170,7 +170,8 @@ export class ChunkLoader {
       if (!requiredChunks.has(key)) {
         const [cx, cy] = key.split(',').map(Number);
         chunksToUnload.push({ x: cx, y: cy });
-        this.renderedChunks.delete(key); // Mark as not rendered
+        // NOTE: Do NOT delete from renderedChunks here!
+        // unloadChunkRender() needs the GameChunk reference to properly destroy sprites.
       }
     }
 
@@ -424,7 +425,7 @@ export class ChunkLoader {
     const chunkKey = `${chunkX},${chunkY}`;
     if (this.loadedChunks.has(chunkKey)) {
       this.loadedChunks.delete(chunkKey);
-      this.renderedChunks.delete(chunkKey);
+      // renderedChunks is cleaned up by unloadChunkRender() after sprite cleanup
     }
   }
 

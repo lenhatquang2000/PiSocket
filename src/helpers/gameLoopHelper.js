@@ -1,5 +1,5 @@
 import { streamChunksHelper } from './chunkHelper/chunkHelper.js';
-import { updateCameraAndDepth } from './cameraHelper.js';
+import { updateCameraAndDepth, recalculateStaticObjectZIndices } from './cameraHelper.js';
 import { debugLog } from './debugHelper.js';
 
 /**
@@ -94,6 +94,12 @@ export function setupGameLoop(app, {
             }
         }
 
+        // 1. Recalculate static object z-indices only when flagged (chunk load, crop grow/planted, etc.)
+        if (loopContext.zIndexRecalculationNeeded) {
+            recalculateStaticObjectZIndices(collidableObjects, checkSpecialCollider);
+            loopContext.zIndexRecalculationNeeded = false;
+        }
+
         // Cập nhật camera và thứ tự chồng lớp (depth/zIndex sorting)
         updateCameraAndDepth({
             app,
@@ -107,7 +113,8 @@ export function setupGameLoop(app, {
             checkSpecialCollider,
             CROP_GROWTH_STAGES,
             riceGrowthFrames,
-            collisionData
+            collisionData,
+            loopContext
         });
 
         // Kiểm tra trigger zone của player chạm vào z_index_up của object
@@ -128,49 +135,6 @@ export function setupGameLoop(app, {
             });
         }
 
-        // Kiểm tra trigger zone (tím) giữa các objects
-        collidableObjects.forEach(objA => {
-            if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
-
-            collidableObjects.forEach(objB => {
-                if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
-                if (objA === objB) return;
-
-                if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
-                    objA.sprite.zIndex = Math.floor(objB.y * 10) + 5000;
-                }
-            });
-        });
-
-        // Kiểm tra trigger zone theo object type ID
-        const objectsByType = {};
-        collidableObjects.forEach(obj => {
-            if (obj.objectTypeId) {
-                if (!objectsByType[obj.objectTypeId]) {
-                    objectsByType[obj.objectTypeId] = [];
-                }
-                objectsByType[obj.objectTypeId].push(obj);
-            }
-        });
-
-        Object.keys(objectsByType).forEach(typeId => {
-            const objects = objectsByType[typeId];
-            if (objects.length < 2) return;
-
-            objects.forEach(objA => {
-                if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
-
-                objects.forEach(objB => {
-                    if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
-                    if (objA === objB) return;
-
-                    if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
-                        objA.sprite.zIndex = Math.floor(objB.y * 10) + 5000;
-                    }
-                });
-            });
-        });
-
         // Update lastSentData and auto-load chunks
         if (moved) {
             const { chunkX, chunkY } = chunkLoader.worldToChunk(characterContainer.x, characterContainer.y);
@@ -190,6 +154,9 @@ export function setupGameLoop(app, {
                 playerX: characterContainer.x,
                 playerY: characterContainer.y
             });
+
+            // Trigger static z-index recalculation since chunks changed
+            loopContext.zIndexRecalculationNeeded = true;
         }
 
         // Cập nhật UI HP/MP

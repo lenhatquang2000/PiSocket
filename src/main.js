@@ -296,6 +296,16 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
         if (!points || points.length === 0) return false;
 
         const charScale = char.scale.x;
+
+        // Broad phase distance check: If objects are too far apart, they cannot overlap.
+        const dx = char.x - obj.x;
+        const dy = char.y - obj.y;
+        const approxObjSize = Math.max(obj.width || 64, obj.height || 64) * (obj.scale || 1.0);
+        const approxCharSize = char.colliderData ? Math.max(char.colliderData.width || 64, char.colliderData.height || 64) * charScale : 64;
+        const limit = approxObjSize + approxCharSize + 20;
+        if (dx * dx + dy * dy > limit * limit) {
+            return false;
+        }
         let charPoints = null;
 
         // Nếu useTriggerZone = true, dùng triggerZonePoints
@@ -386,7 +396,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
 
     // --- HÀM TẠO CÂY TRỒNG ---
     const createPlantedCrop = (x, y, cropData, saveToServer = true, plantedAt = null, plantedCropId = null) => {
-        return createPlantedCropHelper({
+        const result = createPlantedCropHelper({
             x,
             y,
             cropData,
@@ -402,6 +412,10 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
             plantedCropId,
             chunkLoader
         });
+        if (result) {
+            loopContext.zIndexRecalculationNeeded = true;
+        }
+        return result;
     };
 
 
@@ -585,6 +599,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
     let isSleeping = false; // Khóa di chuyển khi đang ngủ
     let isSkillOnCooldown = false; // Đang trong cooldown
     let lastSentData = { chunkX: null, chunkY: null };
+    let zIndexRecalculationNeeded = true; // Recalculate static z-indices on startup
 
     const loopContext = {
         get isGameStarted() { return isGameStarted; },
@@ -603,7 +618,9 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
         get isSkillOnCooldown() { return isSkillOnCooldown; },
         set isSkillOnCooldown(v) { isSkillOnCooldown = v; },
         get lastSentData() { return lastSentData; },
-        set lastSentData(v) { lastSentData = v; }
+        set lastSentData(v) { lastSentData = v; },
+        get zIndexRecalculationNeeded() { return zIndexRecalculationNeeded; },
+        set zIndexRecalculationNeeded(v) { zIndexRecalculationNeeded = v; }
     };
     let zIndexOverride = null; // Lưu z-index được điều chỉnh bởi special collider
     let shakeOffset = { x: 0, y: 0 }; // Offset cho hiệu ứng rung màn hình
@@ -1014,6 +1031,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
                 myGameId,
                 updateChunkUI
             });
+            loopContext.zIndexRecalculationNeeded = true;
         });
     }
 

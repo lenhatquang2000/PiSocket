@@ -13,7 +13,8 @@ export function updateCameraAndDepth({
     checkSpecialCollider,
     CROP_GROWTH_STAGES,
     riceGrowthFrames,
-    collisionData
+    collisionData,
+    loopContext
 }) {
     // 1. --- LOGIC CAMERA FOLLOW ---
     // Giữ nhân vật ở giữa màn hình bằng cách di chuyển cả 'world' (có tính đến tỉ lệ phóng to)
@@ -29,7 +30,7 @@ export function updateCameraAndDepth({
             // Base zIndex từ Y position + offset từ editor zIndex
             const baseZIndex = Math.floor(sprite.y * 10);
             const zIndexOffset = sprite.editorZIndex || 0;
-            sprite.zIndex = baseZIndex + zIndexOffset;
+            sprite.zIndex = baseZIndex + zIndexOffset + (sprite.zIndexAdjustment || 0);
         }
     });
 
@@ -37,7 +38,7 @@ export function updateCameraAndDepth({
     // Cập nhật zIndex cho crop sprites (cây trồng) theo Y và quản lý tiến trình phát triển
     plantedCrops.forEach(crop => {
         if (crop.sprite) {
-            crop.sprite.zIndex = Math.floor(crop.y * 10);
+            crop.sprite.zIndex = Math.floor(crop.y * 10) + (crop.sprite.zIndexAdjustment || 0);
             
             // Kiểm tra và update stage dựa trên thời gian
             const elapsed = (Date.now() - crop.plantedAt) / 1000; // seconds
@@ -87,6 +88,11 @@ export function updateCameraAndDepth({
                 }
                 
                 console.log(`🌱 Crop grew to stage ${newStage} at (${crop.x}, ${crop.y})`);
+                
+                // Signal z-index recalculation since crop visual / collider size changed
+                if (loopContext) {
+                    loopContext.zIndexRecalculationNeeded = true;
+                }
             }
         }
     });
@@ -105,27 +111,94 @@ export function updateCameraAndDepth({
     collidableObjects.forEach(obj => {
         if (!obj.sprite) return;
 
-        // Kiểm tra collider z-index up (xanh) - nhân vật ở trên object
+        // Skip immediately if the object is too far vertically (yDistance >= 50px)
+        const yDistance = Math.abs(obj.y - characterContainer.y);
+        if (yDistance >= 50) return;
+
+        // Check if player is on z-index up (green) - player renders above object
         if (checkSpecialCollider(characterContainer, obj, obj.zIndexUpPoints)) {
-            // Chỉ điều chỉnh nếu object có Y gần với player (trong phạm vi 50 pixel)
-            const yDistance = Math.abs(obj.y - characterContainer.y);
-            if (yDistance < 50) {
-                // Dùng z-index dựa trên Y của object + offset nhỏ
-                const objZIndex = Math.floor(obj.y * 10);
-                charZIndex = objZIndex + 100; // Offset nhỏ hơn để không ảnh hưởng object xa
-            }
+            const objZIndex = Math.floor(obj.y * 10);
+            charZIndex = objZIndex + 100;
         }
-        // Kiểm tra collider z-index down (vàng) - nhân vật ở dưới object
+        // Check if player is on z-index down (yellow) - player renders below object
         else if (checkSpecialCollider(characterContainer, obj, obj.zIndexDownPoints)) {
-            // Chỉ điều chỉnh nếu object có Y gần với player (trong phạm vi 50 pixel)
-            const yDistance = Math.abs(obj.y - characterContainer.y);
-            if (yDistance < 50) {
-                // Dùng z-index dựa trên Y của object - offset nhỏ
-                const objZIndex = Math.floor(obj.y * 10);
-                charZIndex = objZIndex - 100; // Offset nhỏ hơn để không ảnh hưởng object xa
-            }
+            const objZIndex = Math.floor(obj.y * 10);
+            charZIndex = objZIndex - 100;
         }
     });
 
     characterContainer.zIndex = charZIndex;
+}
+
+/**
+ * Recalculate z-index adjustments for all static overlapping objects.
+ * This runs in O(N^2) but only executes once when a chunk loads/unloads or a crop grows.
+ */
+export function recalculateStaticObjectZIndices(collidableObjects, checkSpecialCollider) {
+    if (!collidableObjects || !checkSpecialCollider) return;
+
+    const startTime = performance.now();
+
+    // 1. Reset zIndexAdjustment on all collidable objects
+    collidableObjects.forEach(obj => {
+        if (obj.sprite) {
+            obj.sprite.zIndexAdjustment = 0;
+        }
+    });
+
+    let overlapCount = 0;
+
+    // 2. Check trigger zone (tím) giữa các objects
+    collidableObjects.forEach(objA => {
+        if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
+
+        collidableObjects.forEach(objB => {
+            if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
+            if (objA === objB) return;
+
+            if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
+                const baseZIndexA = Math.floor(objA.sprite.y * 10);
+                const offsetA = objA.sprite.editorZIndex || 0;
+                const targetZIndex = Math.floor(objB.y * 10) + 5000;
+                objA.sprite.zIndexAdjustment = targetZIndex - (baseZIndexA + offsetA);
+                overlapCount++;
+            }
+        });
+    });
+
+    // 3. Check trigger zone theo object type ID
+    const objectsByType = {};
+    collidableObjects.forEach(obj => {
+        if (obj.objectTypeId) {
+            if (!objectsByType[obj.objectTypeId]) {
+                objectsByType[obj.objectTypeId] = [];
+            }
+            objectsByType[obj.objectTypeId].push(obj);
+        }
+    });
+
+    Object.keys(objectsByType).forEach(typeId => {
+        const objects = objectsByType[typeId];
+        if (objects.length < 2) return;
+
+        objects.forEach(objA => {
+            if (!objA.sprite || !objA.triggerZonePoints || objA.triggerZonePoints.length === 0) return;
+
+            objects.forEach(objB => {
+                if (!objB.sprite || !objB.zIndexUpPoints || objB.zIndexUpPoints.length === 0) return;
+                if (objA === objB) return;
+
+                if (checkSpecialCollider(objA, objB, objB.zIndexUpPoints)) {
+                    const baseZIndexA = Math.floor(objA.sprite.y * 10);
+                    const offsetA = objA.sprite.editorZIndex || 0;
+                    const targetZIndex = Math.floor(objB.y * 10) + 5000;
+                    objA.sprite.zIndexAdjustment = targetZIndex - (baseZIndexA + offsetA);
+                    overlapCount++;
+                }
+            });
+        });
+    });
+
+    const elapsed = performance.now() - startTime;
+    console.log(`⚡ [Z-INDEX RECALCULATION] Recalculated z-indices for ${collidableObjects.length} objects. Found ${overlapCount} overlaps. Took ${elapsed.toFixed(2)}ms`);
 }
