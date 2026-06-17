@@ -14,12 +14,12 @@
         .obj-item { padding: 10px; margin-bottom: 5px; background: #2c3e50; cursor: pointer; border-radius: 4px; display: flex; align-items: center; }
         .obj-item:hover { background: #1abc9c; }
         .obj-item img { width: 40px; height: 40px; margin-right: 10px; object-fit: contain; }
-        #controls { position: absolute; bottom: 20px; left: 320px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 400px; transition: all 0.3s ease; }
+        #controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 400px; transition: all 0.3s ease; z-index: 10; }
         #controls.collapsed { height: 50px; overflow: hidden; }
         #controls.collapsed .controls-content { display: none; }
-        #submap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; }
+        #submap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; z-index: 9; }
         #submap-controls.active { display: block; }
-        #worldmap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; }
+        #worldmap-controls { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; min-width: 200px; display: none; z-index: 9; }
         #worldmap-controls.active { display: block; }
         #submap-canvas { display: none; cursor: crosshair; background: #1a1a1a; border: 2px solid #fff; }
         #submap-canvas.active { display: block; }

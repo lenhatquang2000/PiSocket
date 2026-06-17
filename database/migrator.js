@@ -7,6 +7,8 @@ import * as m6 from './migrations/0006_create_planted_crops_table.js';
 import * as m7 from './migrations/0007_create_object_collider_data_table.js';
 import * as m8 from './migrations/0008_create_npcs_table.js';
 import * as m9 from './migrations/0009_create_access_codes_table.js';
+import * as m10 from './migrations/0010_add_attributes_to_players_table.js';
+import * as m11 from './migrations/0011_drop_legacy_columns_from_players.js';
 
 import * as DatabaseSeeder from './seeders/DatabaseSeeder.js';
 
@@ -20,6 +22,8 @@ const migrationsList = [
   { name: '0007_create_object_collider_data_table', module: m7 },
   { name: '0008_create_npcs_table', module: m8 },
   { name: '0009_create_access_codes_table', module: m9 },
+  { name: '0010_add_attributes_to_players_table', module: m10 },
+  { name: '0011_drop_legacy_columns_from_players', module: m11 },
 ];
 
 export async function migrate(db) {

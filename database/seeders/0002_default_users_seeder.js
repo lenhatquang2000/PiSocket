@@ -6,8 +6,8 @@ export async function run(db) {
   `);
   
   db.run(`
-    INSERT OR IGNORE INTO players (id, user_id, name, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level)
-    VALUES (9999, 9999, 'PNeural', 500, 500, 'south', 100, 100, 50, 50, 4, 'SUPREME_ADMIN')
+    INSERT OR IGNORE INTO players (id, user_id, name, x, y, dir, attributes, auth_level)
+    VALUES (9999, 9999, 'PNeural', 500, 500, 'south', '{"hp":100,"max_hp":100,"mp":50,"max_mp":50,"walk_speed":4,"run_speed":6}', 'SUPREME_ADMIN')
   `);
 
   // Default access code

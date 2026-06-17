@@ -55,9 +55,9 @@ export function accountExists(username) {
 
 // Create new account (for compatibility, creates player)
 export function createAccount(username) {
-  const stmt = db.prepare('INSERT INTO players (user_id, name, x, y, dir, hp, max_hp, mp, max_mp, move_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const stmt = db.prepare('INSERT INTO players (user_id, name, x, y, dir, attributes) VALUES (?, ?, ?, ?, ?, ?)');
   try {
-    stmt.run([1, username, 500, 500, 'south', 100, 100, 50, 50, 4]);
+    stmt.run([1, username, 500, 500, 'south', JSON.stringify({ hp: 100, max_hp: 100, mp: 50, max_mp: 50, walk_speed: 4, run_speed: 6 })]);
     stmt.free();
     saveDatabase();
     return true;
@@ -68,17 +68,45 @@ export function createAccount(username) {
 }
 
 export function getPlayerState(username) {
-  const stmt = db.prepare('SELECT name as username, x, y, dir, hp, max_hp, mp, max_mp, move_speed FROM players WHERE name = ?');
+  const stmt = db.prepare('SELECT name as username, x, y, dir, attributes FROM players WHERE name = ?');
   stmt.bind([username]);
   const result = stmt.step() ? stmt.getAsObject() : null;
   stmt.free();
+  
+  if (result) {
+    let attrs = {};
+    try {
+      attrs = JSON.parse(result.attributes || '{}');
+    } catch (e) {}
+    result.hp = attrs.hp ?? 100;
+    result.max_hp = attrs.max_hp ?? 100;
+    result.mp = attrs.mp ?? 50;
+    result.max_mp = attrs.max_mp ?? 50;
+    result.move_speed = attrs.walk_speed ?? 4;
+    delete result.attributes;
+  }
   return result;
 }
 
 export function savePlayerState(username, x, y, dir, hp, mp) {
-  const stmt = db.prepare('UPDATE players SET x = ?, y = ?, dir = ?, hp = ?, mp = ? WHERE name = ?');
+  // Read current attributes so we don't lose other keys (like walk_speed, run_speed, max_hp, max_mp)
+  const selectStmt = db.prepare('SELECT attributes FROM players WHERE name = ?');
+  selectStmt.bind([username]);
+  let attrs = {};
+  if (selectStmt.step()) {
+    try {
+      attrs = JSON.parse(selectStmt.getAsObject().attributes || '{}');
+    } catch(e) {}
+  }
+  selectStmt.free();
+
+  // Update hp and mp
+  attrs.hp = hp;
+  attrs.mp = mp;
+
+  const stmt = db.prepare('UPDATE players SET x = ?, y = ?, dir = ?, attributes = ? WHERE name = ?');
   try {
-    stmt.run([x, y, dir, hp, mp, username]);
+    stmt.run([x, y, dir, JSON.stringify(attrs), username]);
     stmt.free();
     saveDatabase();
     return true;
@@ -90,10 +118,21 @@ export function savePlayerState(username, x, y, dir, hp, mp) {
 
 // Get all players
 export function getAllAccounts() {
-  const stmt = db.prepare('SELECT name as username, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level, created_at FROM players ORDER BY created_at DESC');
+  const stmt = db.prepare('SELECT name as username, x, y, dir, attributes, auth_level, created_at FROM players ORDER BY created_at DESC');
   const results = [];
   while (stmt.step()) {
-    results.push(stmt.getAsObject());
+    const row = stmt.getAsObject();
+    let attrs = {};
+    try {
+      attrs = JSON.parse(row.attributes || '{}');
+    } catch (e) {}
+    row.hp = attrs.hp ?? 100;
+    row.max_hp = attrs.max_hp ?? 100;
+    row.mp = attrs.mp ?? 50;
+    row.max_mp = attrs.max_mp ?? 50;
+    row.move_speed = attrs.walk_speed ?? 4;
+    delete row.attributes;
+    results.push(row);
   }
   stmt.free();
   return results;
@@ -126,11 +165,22 @@ export function loginUser(username, password) {
 }
 
 export function getPlayersByUserId(userId) {
-  const stmt = db.prepare('SELECT id, name, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level FROM players WHERE user_id = ?');
+  const stmt = db.prepare('SELECT id, name, x, y, dir, attributes, auth_level FROM players WHERE user_id = ?');
   stmt.bind([userId]);
   const results = [];
   while (stmt.step()) {
-    results.push(stmt.getAsObject());
+    const row = stmt.getAsObject();
+    let attrs = {};
+    try {
+      attrs = JSON.parse(row.attributes || '{}');
+    } catch (e) {}
+    row.hp = attrs.hp ?? 100;
+    row.max_hp = attrs.max_hp ?? 100;
+    row.mp = attrs.mp ?? 50;
+    row.max_mp = attrs.max_mp ?? 50;
+    row.move_speed = attrs.walk_speed ?? 4;
+    delete row.attributes;
+    results.push(row);
   }
   stmt.free();
   return results;
