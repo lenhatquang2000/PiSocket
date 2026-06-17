@@ -68,8 +68,6 @@ const pNeuralWalkAround = () => {
   pNeuralBot.isWalking = true;
   pNeuralBot.isMoving = true;
 
-  console.log(`🤖 PNeural walking to (${pNeuralBot.targetX.toFixed(1)}, ${pNeuralBot.targetY.toFixed(1)}) dir: ${pNeuralBot.dir}`);
-
   // Di chuyển từng frame
   const moveStep = () => {
     const dx = pNeuralBot.targetX - pNeuralBot.x;
@@ -95,8 +93,6 @@ const pNeuralWalkAround = () => {
         name: pNeuralBot.username,
         isMoving: false
       });
-
-      console.log(`🤖 PNeural arrived at (${pNeuralBot.x.toFixed(1)}, ${pNeuralBot.y.toFixed(1)})`);
     } else {
       // Tiếp tục di chuyển
       const speed = 2;
