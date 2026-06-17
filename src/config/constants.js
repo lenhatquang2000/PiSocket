@@ -6,9 +6,9 @@ export const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south',
 export const ANIMATION_PATHS = {
     walk: '/MC/Girls/Mira/animations/Walking/',
     idle: '/MC/Girls/Mira/animations/Breathing/',
-    attack: '/MC/Girls/Mira/animations/Fireball/',
-    dig: '/MC/Girls/Mira/animations/dig/',
-    seeding: '/MC/Girls/Mira/animations/seeding/',
+    attack: '/skill_animation/Fireball/',
+    dig: '/skill_animation/dig/',
+    seeding: '/skill_animation/seeding/',
     sleep: '/MC/Girls/Mira/animations/sleep/',
     sleeping: '/MC/Girls/Mira/animations/Sleeping/'
 };

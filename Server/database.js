@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.dirname(__dirname);
 
 let db;
-const DB_PATH = path.join(rootDir, 'game_accounts.db');
+const DB_PATH = path.join(rootDir, 'database', 'Life4Dun.db');
 
 import { migrate } from '../database/migrator.js';
 

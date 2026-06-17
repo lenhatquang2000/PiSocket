@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'game_accounts.db');
+const dbPath = path.join(__dirname, 'database', 'Life4Dun.db');
 
 console.log('🗑️  Đang xóa dữ liệu farming...');
 console.log('📁 Database path:', dbPath);

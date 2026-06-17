@@ -1,5 +1,6 @@
 import { AnimatedSprite, Assets } from 'pixi.js';
 import { TILE_SIZE, SOCKET_URL, RICE_FRAME_FILES } from '../config/constants.js';
+import { playDigAnimation, playSeedingAnimation } from '../skills/index.js';
 
 /**
  * Checks if a position is on a farmed tile.
@@ -252,6 +253,14 @@ export function executeDigSkill({
     // 7. Invoke state lock callback
     if (onStart) onStart();
 
+    // Play dig VFX animation
+    playDigAnimation({
+        x: characterContainer.x,
+        y: characterContainer.y,
+        dir: currentDir,
+        world
+    });
+
     // 8. Play animation on character controller and execute on finish
     charCtrl.play('dig', currentDir, () => {
         if (onComplete) onComplete();
@@ -344,6 +353,14 @@ export function executeSeedSkill({
 
     // 9. Invoke state lock callback
     if (onStart) onStart();
+
+    // Play seeding VFX animation
+    playSeedingAnimation({
+        x: characterContainer.x,
+        y: characterContainer.y,
+        dir: currentDir,
+        world
+    });
 
     // 10. Play animation and plant crop on finish
     charCtrl.play('seeding', currentDir, () => {
