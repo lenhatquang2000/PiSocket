@@ -4,11 +4,13 @@ export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3
 export const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
 export const ANIMATION_PATHS = {
-    walk: '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/',
-    idle: '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/',
-    attack: '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/',
-    dig: '/assets/A_cute_chibi_anime_girl/animations/dig/',
-    seeding: '/assets/A_cute_chibi_anime_girl/animations/seeding/'
+    walk: '/MC/Girls/Mira/animations/Walking/',
+    idle: '/MC/Girls/Mira/animations/Breathing/',
+    attack: '/MC/Girls/Mira/animations/Fireball/',
+    dig: '/MC/Girls/Mira/animations/dig/',
+    seeding: '/MC/Girls/Mira/animations/seeding/',
+    sleep: '/MC/Girls/Mira/animations/sleep/',
+    sleeping: '/MC/Girls/Mira/animations/Sleeping/'
 };
 
 export const RICE_FRAME_FILES = [

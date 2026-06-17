@@ -1,4 +1,4 @@
-import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop, saveObjectColliderData, getObjectColliderData, getAllObjectColliderData, verifyAccessCode, updateAccountAuthLevel, getAccountAuthLevel, createAccessCode, getAllAccessCodes, deactivateAccessCode, getAllNPCs, createNPC, updateNPCPosition } from './database.js';
+import { accountExists, createAccount, getPlayerState, savePlayerState, initializePlayerSkills, getPlayerSkills, updateSkillLastUsed, getSkillCooldownRemaining, saveFarmedTile, getAllFarmedTiles, deleteFarmedTile, clearAllFarmedTiles, getAllCropTypes, plantCrop, getAllPlantedCrops, harvestCrop, deletePlantedCrop, saveObjectColliderData, getObjectColliderData, getAllObjectColliderData, verifyAccessCode, updateAccountAuthLevel, getAccountAuthLevel, createAccessCode, getAllAccessCodes, deactivateAccessCode, getAllNPCs, createNPC, updateNPCPosition, registerUser, loginUser, getPlayersByUserId, createPlayer, deletePlayer } from './database.js';
 
 // Check if account exists
 export function checkAccount(username) {
@@ -148,3 +148,29 @@ export function addNPC(name, x, y, dir, spritePath) {
 export function moveNPC(name, x, y, dir) {
   return updateNPCPosition(name, x, y, dir);
 }
+
+// --- User Authentication & Character Selection ---
+export function registerNewUser(username, password) {
+  return registerUser(username, password);
+}
+
+export function loginExistingUser(username, password) {
+  return loginUser(username, password);
+}
+
+export function getPlayersForUser(userId) {
+  return getPlayersByUserId(userId);
+}
+
+export function createNewPlayer(userId, name, authLevel = 'user') {
+  const result = createPlayer(userId, name, authLevel);
+  if (result.success) {
+    initializePlayerSkills(name);
+  }
+  return result;
+}
+
+export function deleteExistingPlayer(userId, playerId) {
+  return deletePlayer(userId, playerId);
+}
+

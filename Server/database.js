@@ -10,6 +10,8 @@ const rootDir = path.dirname(__dirname);
 let db;
 const DB_PATH = path.join(rootDir, 'game_accounts.db');
 
+import { migrate } from '../database/migrator.js';
+
 export async function initDatabase() {
   const SQL = await initSqlJs();
   
@@ -21,150 +23,10 @@ export async function initDatabase() {
     db = new SQL.Database();
   }
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      x REAL DEFAULT 500,
-      y REAL DEFAULT 500,
-      dir TEXT DEFAULT 'south',
-      hp INTEGER DEFAULT 100,
-      max_hp INTEGER DEFAULT 100,
-      mp INTEGER DEFAULT 50,
-      max_mp INTEGER DEFAULT 50,
-      move_speed REAL DEFAULT 4,
-      auth_level TEXT DEFAULT 'user',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  ensureColumn('accounts', 'x', 'REAL DEFAULT 500');
-  ensureColumn('accounts', 'y', 'REAL DEFAULT 500');
-  ensureColumn('accounts', 'dir', "TEXT DEFAULT 'south'");
-  ensureColumn('accounts', 'hp', 'INTEGER DEFAULT 100');
-  ensureColumn('accounts', 'max_hp', 'INTEGER DEFAULT 100');
-  ensureColumn('accounts', 'mp', 'INTEGER DEFAULT 50');
-  ensureColumn('accounts', 'max_mp', 'INTEGER DEFAULT 50');
-  ensureColumn('accounts', 'move_speed', 'REAL DEFAULT 4');
-  ensureColumn('accounts', 'auth_level', "TEXT DEFAULT 'user'");
-
-  // Bảng access_codes - PNeural authentication system
-  db.run(`
-    CREATE TABLE IF NOT EXISTS access_codes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT UNIQUE NOT NULL,
-      username TEXT NOT NULL,
-      auth_level TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      is_active BOOLEAN DEFAULT 1
-    )
-  `);
-  
-  // Bảng skills
-  db.run(`
-    CREATE TABLE IF NOT EXISTS skills (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL,
-      skill_id INTEGER NOT NULL,
-      skill_name TEXT NOT NULL,
-      skill_type TEXT DEFAULT 'fireball',
-      frames_path TEXT NOT NULL,
-      frame_count INTEGER DEFAULT 16,
-      animation_speed REAL DEFAULT 0.3,
-      cooldown_time REAL DEFAULT 3.0,
-      mp_cost INTEGER DEFAULT 10,
-      last_used DATETIME,
-      FOREIGN KEY (username) REFERENCES accounts(username),
-      UNIQUE(username, skill_id)
-    )
-  `);
-
-  // Bảng farmed_tiles - Lưu trữ các ô đất đã đào
-  db.run(`
-    CREATE TABLE IF NOT EXISTS farmed_tiles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      x REAL NOT NULL,
-      y REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(x, y)
-    )
-  `);
-
-  // Bảng crop_types - Lưu trữ các loại cây trồng
-  db.run(`
-    CREATE TABLE IF NOT EXISTS crop_types (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      display_name TEXT NOT NULL,
-      growth_time INTEGER DEFAULT 60,
-      sprite_path TEXT NOT NULL
-    )
-  `);
-
-  // Bảng planted_crops - Lưu trữ cây đã trồng
-  db.run(`
-    CREATE TABLE IF NOT EXISTS planted_crops (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      x REAL NOT NULL,
-      y REAL NOT NULL,
-      crop_type_id INTEGER NOT NULL,
-      planted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      harvested BOOLEAN DEFAULT 0,
-      FOREIGN KEY (crop_type_id) REFERENCES crop_types(id),
-      UNIQUE(x, y)
-    )
-  `);
-
-  // Bảng object_collider_data - Lưu trữ collider data theo object type ID
-  db.run(`
-    CREATE TABLE IF NOT EXISTS object_collider_data (
-      object_type_id TEXT PRIMARY KEY,
-      normal TEXT,
-      z_index_up TEXT,
-      z_index_down TEXT,
-      trigger_zone TEXT
-    )
-  `);
-
-  // Bảng npcs - Lưu trữ NPCs
-  db.run(`
-    CREATE TABLE IF NOT EXISTS npcs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
-      x REAL NOT NULL,
-      y REAL NOT NULL,
-      dir TEXT DEFAULT 'south',
-      sprite_path TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Thêm dữ liệu mẫu cho crop_types (chỉ thêm nếu chưa có)
-  db.run(`
-    INSERT OR IGNORE INTO crop_types (name, display_name, growth_time, sprite_path)
-    VALUES ('rice', 'Lúa', 60, '/assets/Crops/rice.png')
-  `);
-
-  // Tạo access code mặc định cho PNeural/PoPi (SUPREME_ADMIN)
-  const pNeuralCode = 'POPISUPREME2026';
-  db.run(`
-    INSERT OR IGNORE INTO access_codes (code, username, auth_level)
-    VALUES (?, 'PoPi', 'SUPREME_ADMIN')
-  `, [pNeuralCode]);
-
-  // Tạo account PNeural như một player thật
-  db.run(`
-    INSERT OR IGNORE INTO accounts (username, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level)
-    VALUES ('PNeural', 500, 500, 'south', 100, 100, 50, 50, 4, 'SUPREME_ADMIN')
-  `);
-
-  // Xóa NPC PNeural cũ nếu có
-  db.run(`DELETE FROM npcs WHERE name = 'PNeural'`);
+  // Run migrations & seeders
+  await migrate(db);
 
   saveDatabase();
-
-  console.log(`✅ PNeural access code created: ${pNeuralCode}`);
-  console.log(`✅ PNeural account created as player (500, 500)`);
-  
   console.log("✅ SQLite database initialized");
 }
 
@@ -182,20 +44,20 @@ function ensureColumn(tableName, columnName, columnDefinition) {
   }
 }
 
-// Check if username exists
+// Check if player name exists
 export function accountExists(username) {
-  const stmt = db.prepare('SELECT id FROM accounts WHERE username = ?');
+  const stmt = db.prepare('SELECT id FROM players WHERE name = ?');
   stmt.bind([username]);
   const result = stmt.step();
   stmt.free();
   return result;
 }
 
-// Create new account
+// Create new account (for compatibility, creates player)
 export function createAccount(username) {
-  const stmt = db.prepare('INSERT INTO accounts (username, x, y, dir, hp, max_hp, mp, max_mp, move_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const stmt = db.prepare('INSERT INTO players (user_id, name, x, y, dir, hp, max_hp, mp, max_mp, move_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   try {
-    stmt.run([username, 500, 500, 'south', 100, 100, 50, 50, 4]);
+    stmt.run([1, username, 500, 500, 'south', 100, 100, 50, 50, 4]);
     stmt.free();
     saveDatabase();
     return true;
@@ -206,7 +68,7 @@ export function createAccount(username) {
 }
 
 export function getPlayerState(username) {
-  const stmt = db.prepare('SELECT username, x, y, dir, hp, max_hp, mp, max_mp, move_speed FROM accounts WHERE username = ?');
+  const stmt = db.prepare('SELECT name as username, x, y, dir, hp, max_hp, mp, max_mp, move_speed FROM players WHERE name = ?');
   stmt.bind([username]);
   const result = stmt.step() ? stmt.getAsObject() : null;
   stmt.free();
@@ -214,7 +76,7 @@ export function getPlayerState(username) {
 }
 
 export function savePlayerState(username, x, y, dir, hp, mp) {
-  const stmt = db.prepare('UPDATE accounts SET x = ?, y = ?, dir = ?, hp = ?, mp = ? WHERE username = ?');
+  const stmt = db.prepare('UPDATE players SET x = ?, y = ?, dir = ?, hp = ?, mp = ? WHERE name = ?');
   try {
     stmt.run([x, y, dir, hp, mp, username]);
     stmt.free();
@@ -226,9 +88,9 @@ export function savePlayerState(username, x, y, dir, hp, mp) {
   }
 }
 
-// Get all accounts
+// Get all players
 export function getAllAccounts() {
-  const stmt = db.prepare('SELECT * FROM accounts ORDER BY created_at DESC');
+  const stmt = db.prepare('SELECT name as username, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level, created_at FROM players ORDER BY created_at DESC');
   const results = [];
   while (stmt.step()) {
     results.push(stmt.getAsObject());
@@ -236,6 +98,90 @@ export function getAllAccounts() {
   stmt.free();
   return results;
 }
+
+// --- NEW USER & PLAYER AUTHENTICATION ---
+
+export function registerUser(username, password) {
+  const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
+  try {
+    stmt.run([username, password]);
+    stmt.free();
+    saveDatabase();
+    return { success: true };
+  } catch (err) {
+    stmt.free();
+    return { success: false, error: err.message };
+  }
+}
+
+export function loginUser(username, password) {
+  const stmt = db.prepare('SELECT id, username FROM users WHERE username = ? AND password = ?');
+  stmt.bind([username, password]);
+  let user = null;
+  if (stmt.step()) {
+    user = stmt.getAsObject();
+  }
+  stmt.free();
+  return user;
+}
+
+export function getPlayersByUserId(userId) {
+  const stmt = db.prepare('SELECT id, name, x, y, dir, hp, max_hp, mp, max_mp, move_speed, auth_level FROM players WHERE user_id = ?');
+  stmt.bind([userId]);
+  const results = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return results;
+}
+
+export function createPlayer(userId, name, authLevel = 'user') {
+  const stmt = db.prepare('INSERT INTO players (user_id, name, auth_level) VALUES (?, ?, ?)');
+  try {
+    stmt.run([userId, name, authLevel]);
+    stmt.free();
+    saveDatabase();
+    return { success: true };
+  } catch (err) {
+    stmt.free();
+    return { success: false, error: err.message };
+  }
+}
+
+export function deletePlayer(userId, playerId) {
+  const stmtPlayer = db.prepare('SELECT name FROM players WHERE id = ? AND user_id = ?');
+  stmtPlayer.bind([playerId, userId]);
+  let playerName = null;
+  if (stmtPlayer.step()) {
+    playerName = stmtPlayer.getAsObject().name;
+  }
+  stmtPlayer.free();
+
+  if (!playerName) {
+    return false;
+  }
+
+  // Delete skills associated with the player name
+  const stmtSkills = db.prepare('DELETE FROM skills WHERE username = ?');
+  try {
+    stmtSkills.run([playerName]);
+  } catch(e) {}
+  stmtSkills.free();
+
+  // Delete player
+  const stmtDel = db.prepare('DELETE FROM players WHERE id = ? AND user_id = ?');
+  try {
+    stmtDel.run([playerId, userId]);
+    stmtDel.free();
+    saveDatabase();
+    return true;
+  } catch (err) {
+    stmtDel.free();
+    return false;
+  }
+}
+
 
 // --- SKILL MANAGEMENT ---
 export function initializePlayerSkills(username) {

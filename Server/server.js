@@ -3,12 +3,13 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { initDatabase } from './Server/database.js';
-import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType, verifyAccessCodeLogin, setAccountAuthLevel, getUserAuthLevel, generateAccessCode, listAccessCodes, revokeAccessCode, getNPCs, addNPC, moveNPC } from './Server/playerManager.js';
-import { checkMovement, getCollidableObjectsFromChunk } from './Server/collisionSystem.js';
+import { initDatabase } from './database.js';
+import { checkAccount, createNewAccount, getSavedPlayerState, saveCurrentPlayerState, validateUsername, getPlayerSkillsList, recordSkillUsage, getSkillCooldown, saveFarmedTileData, getFarmedTiles, removeFarmedTile, clearFarmedTiles, getCropTypes, plantCropData, getPlantedCrops, harvestCropData, removePlantedCrop, saveObjectColliderDataByType, getObjectColliderDataByType, getAllObjectColliderDataByType, verifyAccessCodeLogin, setAccountAuthLevel, getUserAuthLevel, generateAccessCode, listAccessCodes, revokeAccessCode, getNPCs, addNPC, moveNPC, registerNewUser, loginExistingUser, getPlayersForUser, createNewPlayer, deleteExistingPlayer } from './playerManager.js';
+import { checkMovement, getCollidableObjectsFromChunk } from './collisionSystem.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const rootDir = path.dirname(__dirname);
 
 const players = {};
 
@@ -279,6 +280,127 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', playersCount: Object.keys(players).length }));
+  }
+  // Register user
+  else if (req.method === 'POST' && req.url === '/register') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username, password } = JSON.parse(body);
+        if (!username || !password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Thiếu Username hoặc Password' }));
+          return;
+        }
+        const validation = validateUsername(username);
+        if (!validation.valid) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: validation.message }));
+          return;
+        }
+        const result = registerNewUser(username.trim(), password);
+        if (result.success) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Username đã tồn tại' }));
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Login user
+  else if (req.method === 'POST' && req.url === '/login') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { username, password } = JSON.parse(body);
+        const user = loginExistingUser(username.trim(), password);
+        if (user) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, userId: user.id, username: user.username }));
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Sai tài khoản hoặc mật khẩu' }));
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Get players
+  else if (req.method === 'POST' && req.url === '/get-players') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { userId } = JSON.parse(body);
+        const playersList = getPlayersForUser(userId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, players: playersList }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Create player
+  else if (req.method === 'POST' && req.url === '/create-player') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { userId, name, accessCode } = JSON.parse(body);
+        const validation = validateUsername(name);
+        if (!validation.valid) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: validation.message }));
+          return;
+        }
+
+        let authLevel = 'user';
+        if (accessCode) {
+          const verification = verifyAccessCodeLogin(accessCode);
+          if (verification) {
+            authLevel = verification.auth_level;
+          }
+        }
+
+        const result = createNewPlayer(userId, name.trim(), authLevel);
+        if (result.success) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Tên nhân vật đã tồn tại' }));
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+  // Delete player
+  else if (req.method === 'POST' && req.url === '/delete-player') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { userId, playerId } = JSON.parse(body);
+        const success = deleteExistingPlayer(userId, playerId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
   }
   // Check if account exists
   else if (req.method === 'POST' && req.url === '/check-account') {
@@ -567,7 +689,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
       try {
-        const filePath = path.join(__dirname, 'public/assets/Object/collision_data.json');
+        const filePath = path.join(rootDir, 'public/assets/Object/collision_data.json');
 
         // Đọc file hiện tại nếu tồn tại
         let existingData = {};
@@ -636,7 +758,7 @@ const server = http.createServer((req, res) => {
         const mapData = JSON.parse(body);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `map_${timestamp}.json`;
-        const filePath = path.join(__dirname, 'public/assets/Map', fileName);
+        const filePath = path.join(rootDir, 'public/assets/Map', fileName);
         
         fs.writeFileSync(filePath, JSON.stringify(mapData, null, 2));
         console.log("✅ Đã lưu map vào:", filePath);
@@ -657,7 +779,7 @@ const server = http.createServer((req, res) => {
       try {
         const submapData = JSON.parse(body);
         const fileName = `${submapData.name}.json`;
-        const dirPath = path.join(__dirname, 'public/assets/Map/MapCon');
+        const dirPath = path.join(rootDir, 'public/assets/Map/MapCon');
         
         // Create MapCon directory if it doesn't exist
         if (!fs.existsSync(dirPath)) {
@@ -679,7 +801,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy danh sách submaps
   else if (req.method === 'GET' && req.url === '/get-submaps') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Map/MapCon');
+      const dirPath = path.join(rootDir, 'public/assets/Map/MapCon');
       
       if (!fs.existsSync(dirPath)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -707,7 +829,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy tất cả ảnh từ thư mục innerhouse
   else if (req.method === 'GET' && req.url === '/get-innerhouse-objects') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Object/innerhouse');
+      const dirPath = path.join(rootDir, 'public/assets/Object/innerhouse');
       
       if (!fs.existsSync(dirPath)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -732,7 +854,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy tất cả ảnh từ thư mục Map2
   else if (req.method === 'GET' && req.url === '/get-map2-tiles') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Map/Map2');
+      const dirPath = path.join(rootDir, 'public/assets/Map/Map2');
       
       if (!fs.existsSync(dirPath)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -757,7 +879,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy tất cả ảnh từ thư mục topdown
   else if (req.method === 'GET' && req.url === '/get-topdown-tiles') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Map/topdown');
+      const dirPath = path.join(rootDir, 'public/assets/Map/topdown');
       
       if (!fs.existsSync(dirPath)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -782,7 +904,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy tất cả ảnh từ thư mục innerhouse
   else if (req.method === 'GET' && req.url === '/get-innerhouse-tiles') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Object/innerhouse');
+      const dirPath = path.join(rootDir, 'public/assets/Object/innerhouse');
       
       if (!fs.existsSync(dirPath)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -813,7 +935,7 @@ const server = http.createServer((req, res) => {
         const worldmapData = JSON.parse(body);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `worldmap_${timestamp}.json`;
-        const filePath = path.join(__dirname, 'public/assets/Map', fileName);
+        const filePath = path.join(rootDir, 'public/assets/Map', fileName);
         
         fs.writeFileSync(filePath, JSON.stringify(worldmapData, null, 2));
         console.log("✅ Đã lưu worldmap vào:", filePath);
@@ -829,7 +951,7 @@ const server = http.createServer((req, res) => {
   // Endpoint để lấy worldmap mới nhất
   else if (req.method === 'GET' && req.url === '/get-latest-worldmap') {
     try {
-      const dirPath = path.join(__dirname, 'public/assets/Map');
+      const dirPath = path.join(rootDir, 'public/assets/Map');
       const files = fs.readdirSync(dirPath);
       const worldmapFiles = files
         .filter(file => file.startsWith('worldmap_') && file.endsWith('.json'))
@@ -871,7 +993,7 @@ const server = http.createServer((req, res) => {
         console.log(`📦 Chunk (${chunkX}, ${chunkY}) registered: ${objects.length} objects`);
         
         const chunkFileName = `chunk_${chunkX}_${chunkY}.bin`;
-        const chunksDir = path.join(__dirname, 'public/assets/Map/chunks');
+        const chunksDir = path.join(rootDir, 'public/assets/Map/chunks');
         
         // Create chunks directory if it doesn't exist
         if (!fs.existsSync(chunksDir)) {

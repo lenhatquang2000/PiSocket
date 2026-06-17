@@ -97,21 +97,19 @@ copyAllFramesBtn.onclick = async () => {
         return;
     }
 
-    // Calculate root folder (folder before assets)
-    // Example: /assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/south/frame_000.png
-    // Root folder: A_cute_chibi_anime_girl
+    // Calculate root folder (folder for the character)
+    // Example: /MC/Girls/Mira/animations/Walking-3023122c/south/frame_000.png
+    // Root folder: Mira
     const parts = currentPath.split('/');
     console.log("Path parts:", parts);
-    const assetsIndex = parts.indexOf('assets');
-    if (assetsIndex === -1 || assetsIndex + 1 >= parts.length) {
-        alert("Path không hợp lệ!");
+    const miraIndex = parts.indexOf('Mira');
+    if (miraIndex === -1) {
+        alert("Path không hợp lệ! Chỉ hỗ trợ nhân vật Mira.");
         return;
     }
-    const rootFolder = parts[assetsIndex + 1]; // A_cute_chibi_anime_girl
-    const rootFolderPath = `/assets/${rootFolder}/`;
+    const rootFolderPath = `/MC/Girls/Mira/`;
     
     console.log("Current path:", currentPath);
-    console.log("Root folder:", rootFolder);
     console.log("Root folder path:", rootFolderPath);
 
     // Load collision_data.json to find all frames in root folder
@@ -131,11 +129,11 @@ copyAllFramesBtn.onclick = async () => {
 
         // Also add animation paths from constants (for frames not yet in collisionData)
         const animationPaths = [
-            '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/',
-            '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/',
-            '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/',
-            '/assets/A_cute_chibi_anime_girl/animations/dig/',
-            '/assets/A_cute_chibi_anime_girl/animations/seeding/'
+            '/MC/Girls/Mira/animations/Walking-3023122c/',
+            '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/',
+            '/MC/Girls/Mira/animations/Fireball-4a198baf/',
+            '/MC/Girls/Mira/animations/dig/',
+            '/MC/Girls/Mira/animations/seeding/'
         ];
 
         // Add all possible frame paths (8 directions * 30 frames per animation)
@@ -321,7 +319,7 @@ const loadCollisionData = async () => {
 // Tải danh sách vật thể
 const loadLists = () => {
     // Player collider
-    const playerPath = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png';
+    const playerPath = '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/south/frame_000.png';
     createItem(playerPath, document.getElementById('player-list'), 'Player Collider');
 
     // ... (giữ nguyên)

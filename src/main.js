@@ -4,6 +4,8 @@ import { RICE_FRAME_FILES, CROP_GROWTH_STAGES } from './config/constants.js';
 import { ChunkLoader } from './chunkLoader.js';
 import { renderChunk, unloadChunkRender } from './chunkRenderer.js';
 import { ServerMovementController } from './serverMovement.js';
+import { getCharacterAssetUrls, CharacterController } from './characterController.js';
+
 
 (async () => {
     console.log('🎮 [GAME] Starting game initialization...');
@@ -44,13 +46,13 @@ import { ServerMovementController } from './serverMovement.js';
     });
 
     const directions = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
-    const walkBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Walking-3023122c/';
-    const idleBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/';
-    const attackBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Fireball-4a198baf/';
-    const digBaseDir = '/assets/A_cute_chibi_anime_girl/animations/dig/';
-    const seedingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/seeding/';
-    const sleepBaseDir = '/assets/A_cute_chibi_anime_girl/animations/sleep/';
-    const sleepingBaseDir = '/assets/A_cute_chibi_anime_girl/animations/Sleeping/';
+    const walkBaseDir = '/MC/Girls/Mira/animations/Walking-3023122c/';
+    const idleBaseDir = '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/';
+    const attackBaseDir = '/MC/Girls/Mira/animations/Fireball-4a198baf/';
+    const digBaseDir = '/MC/Girls/Mira/animations/dig/';
+    const seedingBaseDir = '/MC/Girls/Mira/animations/seeding/';
+    const sleepBaseDir = '/MC/Girls/Mira/animations/sleep/';
+    const sleepingBaseDir = '/MC/Girls/Mira/animations/Sleeping/';
 
     // 1. Tải tất cả asset song song và theo dõi tiến trình
     const walkAnimations = {};
@@ -94,7 +96,7 @@ import { ServerMovementController } from './serverMovement.js';
     // Danh sách các file cần tải
     const assetsToLoad = [];
     directions.forEach(dir => {
-        for (let i = 0; i < 6; i++) assetsToLoad.push(`${walkBaseDir}${dir}/frame_00${i}.png`);
+        // for (let i = 0; i < 6; i++) assetsToLoad.push(`${walkBaseDir}${dir}/frame_00${i}.png`); // Removed walking animation assets
         for (let i = 0; i < 4; i++) assetsToLoad.push(`${idleBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 6; i++) assetsToLoad.push(`${attackBaseDir}${dir}/frame_00${i}.png`);
         for (let i = 0; i < 9; i++) assetsToLoad.push(`${digBaseDir}${dir}/frame_00${i}.png`);
@@ -144,7 +146,7 @@ import { ServerMovementController } from './serverMovement.js';
     assetsToLoad.push('/assets/Farming1/2D_game_asset_cultivated_farm (14).png');
 
     // Thêm texture player frame để dùng cho collider
-    assetsToLoad.push('/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png');
+    assetsToLoad.push('/MC/Girls/Mira/animations/Breathing_Idle-905887d4/south/frame_000.png');
 
     // Thêm các frame cho skill bộc phá (16 frames)
     for (let i = 0; i < 16; i++) {
@@ -1349,7 +1351,7 @@ import { ServerMovementController } from './serverMovement.js';
     characterContainer.charColliderDebug = charColliderG;
 
     // Lưu dữ liệu collider cho nhân vật
-    const playerPath = '/assets/A_cute_chibi_anime_girl/animations/Breathing_Idle-905887d4/south/frame_000.png';
+    const playerPath = '/MC/Girls/Mira/animations/Breathing_Idle-905887d4/south/frame_000.png';
     const playerTexture = Assets.get(playerPath);
     const playerHitData = collisionData[playerPath];
 
@@ -1387,10 +1389,31 @@ import { ServerMovementController } from './serverMovement.js';
         charColliderG.drawCircle(0, 0, 15);
     }
 
-    // --- XỬ LÝ NÚT TẠO NHÂN VẬT ---
-    const gameIdInput = document.getElementById('game-id');
-    const accessCodeInput = document.getElementById('access-code');
-    const createBtn = document.getElementById('create-btn');
+    // --- XỬ LÝ ĐĂNG NHẬP / ĐĂNG KÝ VÀ CHỌN NHÂN VẬT ---
+    let currentUserId = null;
+
+    const authSection = document.getElementById('auth-section');
+    const charSection = document.getElementById('char-section');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const charList = document.getElementById('char-list');
+    const createCharForm = document.getElementById('create-char-form');
+    
+    const tabLoginBtn = document.getElementById('tab-login-btn');
+    const tabRegisterBtn = document.getElementById('tab-register-btn');
+    const loginUsernameInput = document.getElementById('login-username');
+    const loginPasswordInput = document.getElementById('login-password');
+    const loginBtn = document.getElementById('login-btn');
+    
+    const registerUsernameInput = document.getElementById('register-username');
+    const registerPasswordInput = document.getElementById('register-password');
+    const registerBtn = document.getElementById('register-btn');
+    
+    const showCreateCharBtn = document.getElementById('show-create-char-btn');
+    const newCharNameInput = document.getElementById('new-char-name');
+    const charAccessCodeInput = document.getElementById('char-access-code');
+    const confirmCreateCharBtn = document.getElementById('confirm-create-char-btn');
+    const cancelCreateCharBtn = document.getElementById('cancel-create-char-btn');
 
     // === TELEPORT CHUNK FUNCTIONALITY ===
     const chunkXInput = document.getElementById('chunk-x-input');
@@ -1471,59 +1494,260 @@ import { ServerMovementController } from './serverMovement.js';
         });
     }
 
-    // Auto-login function
-    async function autoLogin(username, accessCode = '') {
-        try {
-            // Check if account exists with access code
-            const checkResponse = await fetch(`${SOCKET_URL}/check-account`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, accessCode })
-            });
-            const checkData = await checkResponse.json();
+    // Switch Tabs
+    if (tabLoginBtn && tabRegisterBtn) {
+        tabLoginBtn.addEventListener('click', () => {
+            tabLoginBtn.style.color = '#1099bb';
+            tabLoginBtn.style.borderBottom = '2px solid #1099bb';
+            tabRegisterBtn.style.color = '#aaa';
+            tabRegisterBtn.style.borderBottom = '2px solid transparent';
+            loginForm.style.display = 'block';
+            registerForm.style.display = 'none';
+        });
 
-            if (!checkData.exists) {
-                // Create new account with access code
-                const createResponse = await fetch(`${SOCKET_URL}/create-account`, {
+        tabRegisterBtn.addEventListener('click', () => {
+            tabRegisterBtn.style.color = '#2ecc71';
+            tabRegisterBtn.style.borderBottom = '2px solid #2ecc71';
+            tabLoginBtn.style.color = '#aaa';
+            tabLoginBtn.style.borderBottom = '2px solid transparent';
+            registerForm.style.display = 'block';
+            loginForm.style.display = 'none';
+        });
+    }
+
+    // Register Click
+    if (registerBtn) {
+        registerBtn.addEventListener('click', async () => {
+            const username = registerUsernameInput.value.trim();
+            const password = registerPasswordInput.value.trim();
+            if (!username || !password) {
+                alert('Vui lòng điền đầy đủ tên tài khoản và mật khẩu!');
+                return;
+            }
+            try {
+                const response = await fetch(`${SOCKET_URL}/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, accessCode })
+                    body: JSON.stringify({ username, password })
                 });
-                const createData = await createResponse.json();
-
-                if (!createData.success) {
-                    console.error("❌ Lỗi tạo tài khoản!");
-                    return false;
+                const data = await response.json();
+                if (data.success) {
+                    alert('Đăng ký tài khoản thành công! Hãy đăng nhập.');
+                    registerUsernameInput.value = '';
+                    registerPasswordInput.value = '';
+                    tabLoginBtn.click();
+                } else {
+                    alert('Đăng ký thất bại: ' + (data.error || 'Tài khoản đã tồn tại.'));
                 }
+            } catch (err) {
+                console.error(err);
+                alert('Có lỗi xảy ra khi kết nối máy chủ!');
             }
+        });
+    }
 
-            // Log auth level if provided
-            if (checkData.authLevel) {
-                console.log(`🔐 Auth Level: ${checkData.authLevel}`);
-                if (checkData.authLevel === 'SUPREME_ADMIN') {
-                    console.log(`👑 Chào mừng PoPi! PNeural đã sẵn sàng phục vụ.`);
-                }
+    // Login Click
+    if (loginBtn) {
+        loginBtn.addEventListener('click', async () => {
+            const username = loginUsernameInput.value.trim();
+            const password = loginPasswordInput.value.trim();
+            if (!username || !password) {
+                alert('Vui lòng nhập tài khoản và mật khẩu!');
+                return;
             }
+            await loginUser(username, password);
+        });
+    }
 
-            // Account exists or created successfully, proceed to game
-            myGameId = username;
-            if (checkData.playerState) {
-                characterContainer.x = Number(checkData.playerState.x) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.x : 500);
-                characterContainer.y = Number(checkData.playerState.y) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.y : 500);
-                currentDir = checkData.playerState.dir || 'south';
-                console.log(`✅ Loaded saved position: (${characterContainer.x}, ${characterContainer.y})`);
+    async function loginUser(username, password) {
+        try {
+            const response = await fetch(`${SOCKET_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            if (data.success) {
+                currentUserId = data.userId;
+                authSection.style.display = 'none';
+                charSection.style.display = 'block';
+                await loadCharacters();
+            } else {
+                alert('Đăng nhập thất bại: ' + (data.error || 'Sai tài khoản hoặc mật khẩu.'));
             }
-
-            // Hide UI overlay
-            document.getElementById('ui-overlay').style.display = 'none';
-
-            // Start game
-            startGame();
-            return true;
         } catch (err) {
-            console.error("❌ Auto-login error:", err);
-            return false;
+            console.error(err);
+            alert('Có lỗi xảy ra khi kết nối máy chủ!');
         }
+    }
+
+    // Character Selection and Management
+    async function loadCharacters() {
+        if (!charList) return;
+        charList.innerHTML = '';
+        try {
+            const response = await fetch(`${SOCKET_URL}/get-players`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId })
+            });
+            const data = await response.json();
+            const playersList = data.players || [];
+            
+            if (playersList.length === 0) {
+                charList.innerHTML = `<div style="color: #aaa; font-style: italic; padding: 10px;">Chưa có nhân vật nào. Hãy tạo một nhân vật mới!</div>`;
+                return;
+            }
+
+            playersList.forEach(p => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    padding: 12px 15px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin-bottom: 8px;
+                `;
+                
+                // Hover effect
+                item.onmouseenter = () => {
+                    item.style.background = 'rgba(16, 153, 187, 0.15)';
+                    item.style.borderColor = '#1099bb';
+                };
+                item.onmouseleave = () => {
+                    item.style.background = 'rgba(255, 255, 255, 0.05)';
+                    item.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                };
+
+                const info = document.createElement('div');
+                info.style.textAlign = 'left';
+                info.innerHTML = `
+                    <div style="font-weight: bold; font-size: 16px; color: #1099bb;">${p.name}</div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">❤️ HP: ${p.hp}/${p.max_hp} | ✨ MP: ${p.mp}/${p.max_mp}</div>
+                `;
+                
+                // Click to play as this character
+                info.style.flex = '1';
+                info.addEventListener('click', () => {
+                    playCharacter(p);
+                });
+
+                const delBtn = document.createElement('button');
+                delBtn.innerText = '🗑️';
+                delBtn.style.cssText = `
+                    background: none;
+                    border: none;
+                    font-size: 18px;
+                    cursor: pointer;
+                    padding: 5px;
+                    transition: transform 0.2s;
+                `;
+                delBtn.onmouseenter = () => delBtn.style.transform = 'scale(1.2)';
+                delBtn.onmouseleave = () => delBtn.style.transform = 'scale(1)';
+                
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Bạn có chắc chắn muốn xóa nhân vật ${p.name}?`)) {
+                        await deleteCharacter(p.id);
+                    }
+                });
+
+                item.appendChild(info);
+                item.appendChild(delBtn);
+                charList.appendChild(item);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function deleteCharacter(playerId) {
+        try {
+            const response = await fetch(`${SOCKET_URL}/delete-player`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, playerId })
+            });
+            const data = await response.json();
+            if (data.success) {
+                await loadCharacters();
+            } else {
+                alert('Xóa nhân vật thất bại!');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    if (showCreateCharBtn) {
+        showCreateCharBtn.addEventListener('click', () => {
+            showCreateCharBtn.style.display = 'none';
+            createCharForm.style.display = 'block';
+        });
+    }
+
+    if (cancelCreateCharBtn) {
+        cancelCreateCharBtn.addEventListener('click', () => {
+            showCreateCharBtn.style.display = 'flex';
+            createCharForm.style.display = 'none';
+            newCharNameInput.value = '';
+            charAccessCodeInput.value = '';
+        });
+    }
+
+    if (confirmCreateCharBtn) {
+        confirmCreateCharBtn.addEventListener('click', async () => {
+            const name = newCharNameInput.value.trim();
+            const accessCode = charAccessCodeInput.value.trim();
+            if (!name) {
+                alert('Vui lòng điền tên nhân vật!');
+                return;
+            }
+            try {
+                const response = await fetch(`${SOCKET_URL}/create-player`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, name, accessCode })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    newCharNameInput.value = '';
+                    charAccessCodeInput.value = '';
+                    createCharForm.style.display = 'none';
+                    showCreateCharBtn.style.display = 'flex';
+                    await loadCharacters();
+                } else {
+                    alert('Tạo nhân vật thất bại: ' + (data.error || 'Tên nhân vật đã tồn tại.'));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+    // Play with selected character
+    function playCharacter(player) {
+        myGameId = player.name;
+        
+        // Cấu hình các thuộc tính nhân vật trước khi bắt đầu
+        characterContainer.x = Number(player.x) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.x : 500);
+        characterContainer.y = Number(player.y) || (worldmapData && worldmapData.spawnPoint ? worldmapData.spawnPoint.y : 500);
+        currentDir = player.dir || 'south';
+        
+        playerStats.hp = Number(player.hp) || 100;
+        playerStats.maxHp = Number(player.max_hp) || 100;
+        playerStats.mp = Number(player.mp) || 50;
+        playerStats.maxMp = Number(player.max_mp) || 50;
+        playerStats.moveSpeed = Number(player.move_speed) || 4;
+
+        // Hide overlay & Start game
+        document.getElementById('ui-overlay').style.display = 'none';
+        startGame();
     }
 
     // Check for auto-login data
@@ -1583,26 +1807,8 @@ import { ServerMovementController } from './serverMovement.js';
             }
         })();
     } else {
-        // Normal login flow
-        createBtn.addEventListener('click', async () => {
-            const username = gameIdInput.value.trim();
-            const accessCode = accessCodeInput.value.trim();
-
-            if (!username) {
-                alert("Vui lòng nhập username!");
-                return;
-            }
-
-            createBtn.disabled = true;
-            createBtn.textContent = "Đang kiểm tra...";
-
-            const success = await autoLogin(username, accessCode);
-
-            if (!success) {
-                createBtn.disabled = false;
-                createBtn.textContent = "Tạo nhân vật";
-            }
-        });
+        // Show overlay to prompt login
+        uiOverlay.style.display = 'block';
     }
 
     // Function to start game
