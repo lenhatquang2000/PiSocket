@@ -58,7 +58,7 @@ export const SCATTER_OBJECTS = [
   // Ví dụ thêm object mới:
   {
     name: 'tree',
-    path: 'assets/Object/Forest/forest_obj_11.png',
+    path: '/assets/Object/Forest/forest_obj_11.png',
     layer: 'object',
     zIndex: 100,
     minCount: 1,

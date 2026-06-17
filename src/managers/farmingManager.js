@@ -126,8 +126,6 @@ export class FarmingManager {
             const data = await response.json();
             this.cropTypes = data.cropTypes || [];
             
-            console.log(`📦 Loaded ${this.cropTypes.length} crop types`);
-            
             if (this.cropTypes.length > 0) {
                 this.selectedCropType = this.cropTypes[0];
             }

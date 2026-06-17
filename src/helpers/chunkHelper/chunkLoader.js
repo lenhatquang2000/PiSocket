@@ -1,15 +1,63 @@
 // Chunk Loader - Load binary chunk files dynamically
+import { Container } from 'pixi.js';
 import { getObjectCategories } from '../../config/objectCategories.js';
 import { SCATTER_OBJECTS, pickRandomGroundTile } from './config.js';
-import { debugLog } from '../debugHelper.js';
+
+export class GameChunk {
+  constructor(chunkX, chunkY, width = 20, height = 20, tileSize = 30) {
+    this.chunkX = chunkX;
+    this.chunkY = chunkY;
+    this.width = width;
+    this.height = height;
+    this.tileSize = tileSize;
+
+    // 1. PIXI Containers
+    this.container = new Container();
+    this.container.x = chunkX * width * tileSize;
+    this.container.y = chunkY * height * tileSize;
+    this.container.sortableChildren = false;
+
+    this.groundLayer = new Container();
+    this.groundLayer.x = chunkX * width * tileSize;
+    this.groundLayer.y = chunkY * height * tileSize;
+    this.groundLayer.zIndex = -1000000;
+    this.groundLayer.sortableChildren = false; // Ground doesn't need depth sorting
+    this.container.addChild(this.groundLayer);
+
+    // Trackers for objects rendered in this chunk (added directly to world for global depth sorting)
+    this.objectSprites = [];
+    this.collidableObjects = [];
+    this.farmedSprites = []; // Farmed tiles sprites added to groundLayer
+
+    // 2. Logic Matrix/Grid
+    this.tileGrid = [];
+    for (let x = 0; x < this.width; x++) {
+      this.tileGrid[x] = [];
+      for (let y = 0; y < this.height; y++) {
+        this.tileGrid[x][y] = {
+          x,
+          y,
+          groundType: 'grass', // 'grass', 'dirt', 'farmed'
+          isDiggable: true,
+          groundSprite: null,
+          object: null // { path, sprite, type, collidableRef, etc. }
+        };
+      }
+    }
+  }
+}
 
 export class ChunkLoader {
   constructor() {
     this.loadedChunks = new Map(); // Map<"x,y", chunkData>
-    this.renderedChunks = new Set(); // Track which chunks are currently rendered on screen
+    this.renderedChunks = new Map(); // Track rendered chunks: Map<"x,y", GameChunk>
     this.chunkSize = 20; // 20x20 tiles per chunk
-    this.loadRadius = 1; // Load 1 chunk radius around player (3x3 grid)
+    this.loadRadius = 2; // Load 2 chunks radius around player (5x5 grid = 25 chunks total)
     this.currentPlayerChunk = { x: 0, y: 0 }; // Track player's current chunk
+
+    // Global farmed tiles and crops data cache
+    this.farmedTilesData = new Map(); // Map<"chunkX,chunkY", Set<"localX,localY">>
+    this.plantedCropsData = new Map(); // Map<"chunkX,chunkY", Map<"localX,localY", cropData>>
   }
 
   // Chuyển đổi world coordinates sang chunk coordinates
@@ -19,11 +67,75 @@ export class ChunkLoader {
     return { chunkX, chunkY };
   }
 
+  // Chuyển đổi world coordinates sang chunk coordinates và local tile coordinates
+  worldToTile(worldX, worldY) {
+    const chunkX = Math.floor(worldX / (this.chunkSize * 30));
+    const chunkY = Math.floor(worldY / (this.chunkSize * 30));
+    const chunkWorldX = chunkX * this.chunkSize * 30;
+    const chunkWorldY = chunkY * this.chunkSize * 30;
+    const localX = Math.floor((worldX - chunkWorldX) / 30);
+    const localY = Math.floor((worldY - chunkWorldY) / 30);
+    
+    // Clamp values just in case
+    const clampedLocalX = Math.max(0, Math.min(this.chunkSize - 1, localX));
+    const clampedLocalY = Math.max(0, Math.min(this.chunkSize - 1, localY));
+    
+    return { chunkX, chunkY, localX: clampedLocalX, localY: clampedLocalY };
+  }
+
+  cacheFarmedTiles(tilesList) {
+    this.farmedTilesData.clear();
+    tilesList.forEach(tile => {
+      const { chunkX, chunkY, localX, localY } = this.worldToTile(tile.x, tile.y);
+      const chunkKey = `${chunkX},${chunkY}`;
+      if (!this.farmedTilesData.has(chunkKey)) {
+        this.farmedTilesData.set(chunkKey, new Set());
+      }
+      this.farmedTilesData.get(chunkKey).add(`${localX},${localY}`);
+    });
+  }
+
+  cachePlantedCrops(cropsList) {
+    this.plantedCropsData.clear();
+    cropsList.forEach(crop => {
+      const { chunkX, chunkY, localX, localY } = this.worldToTile(crop.x, crop.y);
+      const chunkKey = `${chunkX},${chunkY}`;
+      if (!this.plantedCropsData.has(chunkKey)) {
+        this.plantedCropsData.set(chunkKey, new Map());
+      }
+      this.plantedCropsData.get(chunkKey).set(`${localX},${localY}`, crop);
+    });
+  }
+
+  addFarmedTileToCache(x, y) {
+    const { chunkX, chunkY, localX, localY } = this.worldToTile(x, y);
+    const chunkKey = `${chunkX},${chunkY}`;
+    if (!this.farmedTilesData.has(chunkKey)) {
+      this.farmedTilesData.set(chunkKey, new Set());
+    }
+    this.farmedTilesData.get(chunkKey).add(`${localX},${localY}`);
+  }
+
+  addPlantedCropToCache(crop) {
+    const { chunkX, chunkY, localX, localY } = this.worldToTile(crop.x, crop.y);
+    const chunkKey = `${chunkX},${chunkY}`;
+    if (!this.plantedCropsData.has(chunkKey)) {
+      this.plantedCropsData.set(chunkKey, new Map());
+    }
+    this.plantedCropsData.get(chunkKey).set(`${localX},${localY}`, crop);
+  }
+
+  removePlantedCropFromCache(x, y) {
+    const { chunkX, chunkY, localX, localY } = this.worldToTile(x, y);
+    const chunkKey = `${chunkX},${chunkY}`;
+    if (this.plantedCropsData.has(chunkKey)) {
+      this.plantedCropsData.get(chunkKey).delete(`${localX},${localY}`);
+    }
+  }
+
   // Load 9 chunks xung quanh player (3x3 grid)
   async loadChunksAroundPlayer(playerX, playerY) {
     const { chunkX, chunkY } = this.worldToChunk(playerX, playerY);
-    
-    debugLog(`🗺️ [CHUNK STREAMING] Checking chunks around player position (${playerX}, ${playerY}) = chunk (${chunkX}, ${chunkY})`);
     
     const loadedChunks = [];
     const chunksToLoad = [];
@@ -32,7 +144,6 @@ export class ChunkLoader {
 
     // Determine which chunks should be loaded (3x3 grid around player)
     const requiredChunks = new Set();
-    debugLog(`🔄 Calculating 3x3 chunk grid (radius=${this.loadRadius})...`);
     
     for (let dx = -this.loadRadius; dx <= this.loadRadius; dx++) {
       for (let dy = -this.loadRadius; dy <= this.loadRadius; dy++) {
@@ -44,15 +155,11 @@ export class ChunkLoader {
         // Check if loaded in memory
         if (!this.isChunkLoaded(cx, cy)) {
           chunksToLoad.push({ x: cx, y: cy });
-          debugLog(`   ├─ Chunk (${cx}, ${cy}) not in memory - will load`);
         } else {
           // Chunk in memory, check if rendered on screen
           if (!this.renderedChunks.has(chunkKey)) {
             const chunkData = this.getChunk(cx, cy);
             chunksToRender.push(chunkData);
-            debugLog(`   ├─ Chunk (${cx}, ${cy}) in memory but not rendered - will render`);
-          } else {
-            debugLog(`   ├─ Chunk (${cx}, ${cy}) already loaded and rendered`);
           }
         }
       }
@@ -64,42 +171,30 @@ export class ChunkLoader {
         const [cx, cy] = key.split(',').map(Number);
         chunksToUnload.push({ x: cx, y: cy });
         this.renderedChunks.delete(key); // Mark as not rendered
-        debugLog(`   └─ Chunk (${cx}, ${cy}) too far - will unload`);
       }
     }
 
     // Load new chunks
     if (chunksToLoad.length > 0) {
-      debugLog(`📥 [CHUNK STREAMING] Loading/generating ${chunksToLoad.length} chunks...`);
       for (const chunk of chunksToLoad) {
-        debugLog(`   ├─ Processing chunk (${chunk.x}, ${chunk.y})...`);
         try {
           const chunkData = await this.loadChunk(chunk.x, chunk.y);
           if (chunkData) {
-            debugLog(`   └─ ✅ Got chunk (${chunk.x}, ${chunk.y}): ${chunkData.objects.length} objects`);
             loadedChunks.push(chunkData);
             chunksToRender.push(chunkData); // Newly loaded chunks need rendering
-          } else {
-            debugLog(`   └─ ⚠️ Failed to get chunk (${chunk.x}, ${chunk.y})`);
           }
         } catch (err) {
-          debugLog(`   └─ ❌ Error processing chunk (${chunk.x}, ${chunk.y}): ${err}`);
+          console.error(`Error processing chunk (${chunk.x}, ${chunk.y}): ${err}`);
         }
       }
-    } else {
-      debugLog(`✅ All required chunks already in memory`);
     }
 
     // Unload far chunks
     if (chunksToUnload.length > 0) {
-      debugLog(`🗑️ [CHUNK STREAMING] Unloading ${chunksToUnload.length} far chunks...`);
       for (const chunk of chunksToUnload) {
-        debugLog(`   ├─ Unloading chunk (${chunk.x}, ${chunk.y})`);
         this.unloadChunk(chunk.x, chunk.y);
       }
     }
-
-    debugLog(`✅ [CHUNK STREAMING] Complete - Loaded: ${loadedChunks.length}, ToRender: ${chunksToRender.length}, Unloaded: ${chunksToUnload.length}`);
     
     // Update current player chunk
     this.currentPlayerChunk = { x: chunkX, y: chunkY };
@@ -117,7 +212,6 @@ export class ChunkLoader {
     
     // Nếu đã load rồi thì return luôn
     if (this.loadedChunks.has(chunkKey)) {
-      debugLog(`📦 Chunk (${chunkX}, ${chunkY}) already loaded in memory`);
       return this.loadedChunks.get(chunkKey);
     }
 
@@ -125,23 +219,19 @@ export class ChunkLoader {
     const chunkPath = `/assets/Map/chunks/${chunkFileName}?t=${Date.now()}`;
 
     try {
-      debugLog(`🔍 Attempting to fetch chunk file: ${chunkPath}`);
       const response = await fetch(chunkPath);
       
       if (response.status === 404) {
-        debugLog(`❌ Chunk file not found (404) - generating new chunk (${chunkX}, ${chunkY})`);
         return await this.generateEmptyChunk(chunkX, chunkY);
       }
       
       if (!response.ok) {
-        debugLog(`⚠️ Failed to fetch chunk (status ${response.status}) - generating new chunk (${chunkX}, ${chunkY})`);
         return await this.generateEmptyChunk(chunkX, chunkY);
       }
 
       // Kiểm tra content type để đảm bảo là binary file
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
-        debugLog(`⚠️ Got HTML instead of binary - generating new chunk (${chunkX}, ${chunkY})`);
         return await this.generateEmptyChunk(chunkX, chunkY);
       }
 
@@ -149,31 +239,24 @@ export class ChunkLoader {
       
       // Kiểm tra kích thước file hợp lệ (ít nhất phải có header 24 bytes)
       if (arrayBuffer.byteLength < 24) {
-        debugLog(`⚠️ Chunk (${chunkX}, ${chunkY}) file too small (${arrayBuffer.byteLength} bytes) - generating empty chunk`);
         return await this.generateEmptyChunk(chunkX, chunkY);
       }
       
-      debugLog(`📖 Parsing chunk file (${arrayBuffer.byteLength} bytes)`);
       const chunkData = this.parseChunkBinary(arrayBuffer);
       
       this.loadedChunks.set(chunkKey, chunkData);
-      debugLog(`✅ Chunk (${chunkX}, ${chunkY}) loaded from file: ${chunkData.objects.length} objects`);
       
       // Register chunk to server for collision detection
       await this.saveChunkToServer(chunkData);
       
       return chunkData;
     } catch (err) {
-      debugLog(`⚠️ Error loading chunk (${chunkX}, ${chunkY}): ${err.message}`);
-      debugLog(`🔨 Generating new chunk as fallback (${chunkX}, ${chunkY})`);
       return await this.generateEmptyChunk(chunkX, chunkY);
     }
   }
 
   // Generate empty or procedural chunk when file doesn't exist
   async generateEmptyChunk(chunkX, chunkY) {
-    debugLog(`🔨 Generating procedural chunk (${chunkX}, ${chunkY})`);
-    
     const objects = [];
     const width = 20;
     const height = 20;
@@ -229,9 +312,6 @@ export class ChunkLoader {
       }
     }
     
-    debugLog(`✅ Generated ${objects.length} objects for chunk (${chunkX}, ${chunkY})`);
-    debugLog(`📊 Category distribution in chunk (${chunkX}, ${chunkY}): ${JSON.stringify(categoryCounts)}`);
-    
     const chunkData = {
       chunkX,
       chunkY,
@@ -254,8 +334,6 @@ export class ChunkLoader {
   // Save generated chunk to server as binary file
   async saveChunkToServer(chunkData) {
     try {
-      debugLog(`💾 Saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}) to server...`);
-      
       const response = await fetch('http://localhost:3000/save-chunk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -263,13 +341,11 @@ export class ChunkLoader {
       });
       
       const result = await response.json();
-      if (result.success) {
-        debugLog(`✅ Chunk (${chunkData.chunkX}, ${chunkData.chunkY}) saved: ${result.fileName} (${result.size})`);
-      } else {
-        debugLog(`❌ Failed to save chunk: ${result.error}`);
+      if (!result.success) {
+        console.error(`Failed to save chunk: ${result.error}`);
       }
     } catch (err) {
-      debugLog(`❌ Error saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}): ${err.message}`);
+      console.error(`Error saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}): ${err.message}`);
     }
   }
 
@@ -349,7 +425,6 @@ export class ChunkLoader {
     if (this.loadedChunks.has(chunkKey)) {
       this.loadedChunks.delete(chunkKey);
       this.renderedChunks.delete(chunkKey);
-      console.log(`🗑️  Unloaded chunk (${chunkX}, ${chunkY})`);
     }
   }
 

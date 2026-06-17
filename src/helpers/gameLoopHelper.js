@@ -1,5 +1,6 @@
 import { streamChunksHelper } from './chunkHelper/chunkHelper.js';
 import { updateCameraAndDepth } from './cameraHelper.js';
+import { debugLog } from './debugHelper.js';
 
 /**
  * Register the main game tick loop inside PixiJS application ticker.
@@ -80,13 +81,16 @@ export function setupGameLoop(app, {
                 charCtrl.play('idle', loopContext.currentDir);
             }
 
-            // Check if position changed (for chunk loading)
-            const oldX = loopContext.lastSentData.x || characterContainer.x;
-            const oldY = loopContext.lastSentData.y || characterContainer.y;
-            if (Math.abs(characterContainer.x - oldX) > 10 || Math.abs(characterContainer.y - oldY) > 10) {
+            // Check if current chunk coordinates changed (for chunk loading)
+            const { chunkX, chunkY } = chunkLoader.worldToChunk(characterContainer.x, characterContainer.y);
+            const lastChunkX = loopContext.lastSentData.chunkX;
+            const lastChunkY = loopContext.lastSentData.chunkY;
+            
+            if (lastChunkX === null || lastChunkY === null || chunkX !== lastChunkX || chunkY !== lastChunkY) {
+                debugLog(`🎮 [CHUNK CHANGED] Player entered chunk (${chunkX}, ${chunkY}) from (${lastChunkX}, ${lastChunkY})`);
                 moved = true;
-                loopContext.lastSentData.x = characterContainer.x;
-                loopContext.lastSentData.y = characterContainer.y;
+                loopContext.lastSentData.chunkX = chunkX;
+                loopContext.lastSentData.chunkY = chunkY;
             }
         }
 
@@ -169,12 +173,11 @@ export function setupGameLoop(app, {
 
         // Update lastSentData and auto-load chunks
         if (moved) {
-            console.log(`🎮 [GAME LOOP] Player moved - calling streamChunksHelper at (${characterContainer.x}, ${characterContainer.y})`);
+            const { chunkX, chunkY } = chunkLoader.worldToChunk(characterContainer.x, characterContainer.y);
+            debugLog(`🎮 [GAME LOOP] Player crossed chunk boundary - calling streamChunksHelper for chunk (${chunkX}, ${chunkY})`);
             loopContext.lastSentData = { 
-                x: characterContainer.x, 
-                y: characterContainer.y, 
-                dir: loopContext.currentDir, 
-                isMoving: loopContext.isMoving
+                chunkX: chunkX, 
+                chunkY: chunkY
             };
 
             await streamChunksHelper({

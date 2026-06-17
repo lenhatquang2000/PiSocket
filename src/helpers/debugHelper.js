@@ -1,16 +1,10 @@
 /**
- * Debug helper - send client logs to server
+ * Debug helper - send client logs to server terminal only
  */
 let debugSocket = null;
 
 export function initDebugHelper(socket) {
   debugSocket = socket;
-}
-
-export function sendDebugLog(message) {
-  if (debugSocket) {
-    debugSocket.emit('client-debug-log', { message, timestamp: new Date().toISOString() });
-  }
 }
 
 export function debugLog(...args) {
@@ -25,6 +19,8 @@ export function debugLog(...args) {
     return String(arg);
   }).join(' ');
   
-  console.log(...args);
-  sendDebugLog(message);
+  // Send to server terminal only, don't log to browser console
+  if (debugSocket) {
+    debugSocket.emit('client-debug-log', { message, timestamp: new Date().toISOString() });
+  }
 }

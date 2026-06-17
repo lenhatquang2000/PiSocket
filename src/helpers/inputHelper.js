@@ -20,6 +20,7 @@ export function setupInputListeners(window, {
     socket,
     myGameId,
     SOCKET_URL,
+    chunkLoader,
     executeDigSkill,
     executeSeedSkill
 }) {
@@ -121,6 +122,7 @@ export function setupInputListeners(window, {
                     collisionData,
                     socket,
                     myGameId,
+                    chunkLoader,
                     onStart: () => {
                         loopContext.isSeeding = true;
                         loopContext.isMoving = false;
@@ -150,6 +152,7 @@ export function setupInputListeners(window, {
                     cooldownData: skillCooldowns[farmingSkill.skill_id],
                     socket,
                     myGameId,
+                    chunkLoader,
                     onStart: () => {
                         loopContext.isDigging = true;
                         loopContext.isMoving = false;

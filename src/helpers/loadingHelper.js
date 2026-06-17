@@ -19,13 +19,11 @@ export async function preloadGameAssets({
         const worldmapResponse = await fetch(`${SOCKET_URL}/get-latest-worldmap`);
         const worldmapResult = await worldmapResponse.json();
         worldmapData = worldmapResult.worldmap;
-        console.log('✅ Loaded worldmap:', worldmapResult.fileName);
         
         // Load tất cả submaps
         const submapsResponse = await fetch(`${SOCKET_URL}/get-submaps`);
         const submapsResult = await submapsResponse.json();
         submapsData = submapsResult.submaps || [];
-        console.log(`✅ Loaded ${submapsData.length} submaps`);
     } catch (err) {
         console.error('❌ Lỗi load worldmap, fallback to map_config.json:', err);
         worldmapData = null;
@@ -49,7 +47,6 @@ export async function preloadGameAssets({
                 });
             }
         });
-        console.log(`📦 Loading assets from ${submapsData.length} submaps`);
     } else if (mapConfig && mapConfig.zones) {
         // Fallback: Tải texture của tất cả các vùng map từ config cũ
         mapConfig.zones.forEach(zone => {

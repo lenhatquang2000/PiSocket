@@ -20,15 +20,12 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
 
 
 (async () => {
-    console.log('🎮 [GAME] Starting game initialization...');
-    
     // 0. Kết nối WebSocket
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
     const socket = io(SOCKET_URL);
     
     // Initialize debug helper to send logs to server
     initDebugHelper(socket);
-    debugLog('🎮 [GAME] Starting game initialization...');
 
     const otherPlayers = {}; // Lưu trữ container của người chơi khác
     const collidableObjects = []; // Lưu trữ các vật thể có va chạm
@@ -37,12 +34,11 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
 
     // Initialize Chunk Loader
     const chunkLoader = new ChunkLoader();
-    console.log('📦 [CHUNK] ChunkLoader initialized');
 
     // --- SOCKET CONNECTION LOGGING ---
-    socket.on("connect", () => console.log("✅ Connected to server, id:", socket.id));
-    socket.on("disconnect", (reason) => console.warn("❌ Disconnected:", reason));
-    socket.on("connect_error", (err) => console.error("⚠️ Connection error:", err.message));
+    socket.on("connect", () => {});
+    socket.on("disconnect", (reason) => {});
+    socket.on("connect_error", (err) => {});
 
     const app = new Application();
     await app.init({ 
@@ -176,9 +172,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
         const response = await fetch(`${SOCKET_URL}/get-all-object-collider-data`);
         const result = await response.json();
         objectColliderDataByType = result.allColliderData || {};
-        console.log("✅ Loaded object collider data by type:", Object.keys(objectColliderDataByType));
     } catch (err) {
-        console.error("❌ Lỗi load object collider data by type:", err);
     }
 
     // === RENDER CHUNKS (NEW SYSTEM) ===
@@ -197,7 +191,6 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
     });
     
     if (!initialLoaded) {
-        console.error('❌ [CHUNK] Failed to load initial chunks');
         renderFallbackMapZones({
             mapConfig,
             world,
@@ -219,7 +212,6 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
         }
         debugBtn.innerText = showDebugColliders ? "Hide Colliders (H)" : "Show Colliders (H)";
         debugBtn.style.background = showDebugColliders ? "rgba(231, 76, 60, 0.8)" : "rgba(0,0,0,0.6)";
-        console.log("Debug Colliders:", showDebugColliders);
     };
 
     window.addEventListener('keydown', (e) => {
@@ -243,14 +235,11 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
                 });
                 const data = await response.json();
                 if (data.success) {
-                    console.log(`⚡ Teleported Neural đến vị trí của bạn (${data.x}, ${data.y})`);
                     alert(`⚡ Đã tele Neural đến vị trí của bạn!`);
                 } else {
-                    console.error("❌ Tele thất bại:", data.error);
                     alert("❌ Tele thất bại!");
                 }
             } catch (err) {
-                console.error("❌ Lỗi tele Neural:", err);
                 alert("❌ Lỗi kết nối server!");
             }
         });
@@ -363,7 +352,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
 
     // --- HÀM TẠO Ô ĐẤT ĐÃ ĐÀO ---
     const createFarmedTile = (x, y, saveToServer = true) => {
-        return createFarmedTileHelper({ x, y, world, farmedTiles, saveToServer });
+        return createFarmedTileHelper({ x, y, world, farmedTiles, saveToServer, chunkLoader });
     };
 
 
@@ -374,13 +363,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
             const data = await response.json();
             const tiles = data.tiles || [];
             
-            console.log(`📦 Loading ${tiles.length} farmed tiles from server...`);
-            
-            tiles.forEach(tile => {
-                createFarmedTile(tile.x, tile.y, false); // false = không lưu lại vào server
-            });
-            
-            console.log(`✅ Loaded ${tiles.length} farmed tiles`);
+            chunkLoader.cacheFarmedTiles(tiles);
         } catch (err) {
             console.error("❌ Lỗi load farmed tiles:", err);
         }
@@ -394,6 +377,12 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
     let cropTypes = []; // Danh sách loại cây trồng
     let selectedCropType = null; // Loại cây đang được chọn
     let isSeeding = false; // Khóa di chuyển khi đang trồng cây
+
+    // Set references on chunkLoader for global sorting and updates
+    chunkLoader.globalPlantedCrops = plantedCrops;
+    chunkLoader.globalCollidableObjects = collidableObjects;
+    chunkLoader.globalFarmedTiles = farmedTiles;
+    chunkLoader.riceGrowthFrames = riceGrowthFrames;
 
     // --- HÀM TẠO CÂY TRỒNG ---
     const createPlantedCrop = (x, y, cropData, saveToServer = true, plantedAt = null, plantedCropId = null) => {
@@ -410,7 +399,8 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
             RICE_FRAME_FILES,
             saveToServer,
             plantedAt,
-            plantedCropId
+            plantedCropId,
+            chunkLoader
         });
     };
 
@@ -421,8 +411,6 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
             const response = await fetch(`${SOCKET_URL}/get-crop-types`);
             const data = await response.json();
             cropTypes = data.cropTypes || [];
-
-            console.log(`📦 Loaded ${cropTypes.length} crop types`);
 
             // Tự động chọn loại cây đầu tiên
             if (cropTypes.length > 0) {
@@ -441,17 +429,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
             const data = await response.json();
             const crops = data.crops || [];
             
-            crops.forEach((crop, index) => {
-                const cropData = {
-                    id: crop.crop_type_id,
-                    name: crop.crop_name,
-                    display_name: crop.display_name,
-                    sprite_path: crop.sprite_path
-                };
-                // Parse planted_at từ server (SQLite datetime format)
-                const plantedAt = new Date(crop.planted_at).getTime();
-                createPlantedCrop(crop.x, crop.y, cropData, false, plantedAt, crop.id);
-            });
+            chunkLoader.cachePlantedCrops(crops);
         } catch (err) {
             console.error("❌ Lỗi load planted crops:", err);
         }
@@ -606,7 +584,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
     let isDigging = false; // Khóa di chuyển khi đang đào đất
     let isSleeping = false; // Khóa di chuyển khi đang ngủ
     let isSkillOnCooldown = false; // Đang trong cooldown
-    let lastSentData = { x: 0, y: 0, dir: '', isMoving: false };
+    let lastSentData = { chunkX: null, chunkY: null };
 
     const loopContext = {
         get isGameStarted() { return isGameStarted; },
@@ -1275,6 +1253,7 @@ import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
         socket,
         myGameId,
         SOCKET_URL,
+        chunkLoader,
         executeDigSkill,
         executeSeedSkill
     });
