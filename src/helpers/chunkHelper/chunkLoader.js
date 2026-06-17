@@ -1,9 +1,12 @@
 // Chunk Loader - Load binary chunk files dynamically
 import { getObjectCategories } from '../../config/objectCategories.js';
+import { SCATTER_OBJECTS, pickRandomGroundTile } from './config.js';
+import { debugLog } from '../debugHelper.js';
 
 export class ChunkLoader {
   constructor() {
     this.loadedChunks = new Map(); // Map<"x,y", chunkData>
+    this.renderedChunks = new Set(); // Track which chunks are currently rendered on screen
     this.chunkSize = 20; // 20x20 tiles per chunk
     this.loadRadius = 1; // Load 1 chunk radius around player (3x3 grid)
     this.currentPlayerChunk = { x: 0, y: 0 }; // Track player's current chunk
@@ -20,29 +23,37 @@ export class ChunkLoader {
   async loadChunksAroundPlayer(playerX, playerY) {
     const { chunkX, chunkY } = this.worldToChunk(playerX, playerY);
     
-    // Check if player moved to a different chunk
-    if (this.currentPlayerChunk.x === chunkX && this.currentPlayerChunk.y === chunkY) {
-      // Player still in same chunk, no need to reload
-      return { loaded: [], unloaded: [] };
-    }
-
-    console.log(`🗺️ [CHUNK STREAMING] Player moved to chunk (${chunkX}, ${chunkY})`);
-    this.currentPlayerChunk = { x: chunkX, y: chunkY };
-
+    debugLog(`🗺️ [CHUNK STREAMING] Checking chunks around player position (${playerX}, ${playerY}) = chunk (${chunkX}, ${chunkY})`);
+    
     const loadedChunks = [];
     const chunksToLoad = [];
     const chunksToUnload = [];
+    const chunksToRender = []; // Chunks loaded but not rendered yet
 
     // Determine which chunks should be loaded (3x3 grid around player)
     const requiredChunks = new Set();
+    debugLog(`🔄 Calculating 3x3 chunk grid (radius=${this.loadRadius})...`);
+    
     for (let dx = -this.loadRadius; dx <= this.loadRadius; dx++) {
       for (let dy = -this.loadRadius; dy <= this.loadRadius; dy++) {
         const cx = chunkX + dx;
         const cy = chunkY + dy;
-        requiredChunks.add(`${cx},${cy}`);
+        const chunkKey = `${cx},${cy}`;
+        requiredChunks.add(chunkKey);
         
+        // Check if loaded in memory
         if (!this.isChunkLoaded(cx, cy)) {
           chunksToLoad.push({ x: cx, y: cy });
+          debugLog(`   ├─ Chunk (${cx}, ${cy}) not in memory - will load`);
+        } else {
+          // Chunk in memory, check if rendered on screen
+          if (!this.renderedChunks.has(chunkKey)) {
+            const chunkData = this.getChunk(cx, cy);
+            chunksToRender.push(chunkData);
+            debugLog(`   ├─ Chunk (${cx}, ${cy}) in memory but not rendered - will render`);
+          } else {
+            debugLog(`   ├─ Chunk (${cx}, ${cy}) already loaded and rendered`);
+          }
         }
       }
     }
@@ -52,28 +63,50 @@ export class ChunkLoader {
       if (!requiredChunks.has(key)) {
         const [cx, cy] = key.split(',').map(Number);
         chunksToUnload.push({ x: cx, y: cy });
+        this.renderedChunks.delete(key); // Mark as not rendered
+        debugLog(`   └─ Chunk (${cx}, ${cy}) too far - will unload`);
       }
     }
 
     // Load new chunks
-    console.log(`📥 [CHUNK STREAMING] Loading ${chunksToLoad.length} new chunks...`);
-    for (const chunk of chunksToLoad) {
-      const chunkData = await this.loadChunk(chunk.x, chunk.y);
-      if (chunkData) {
-        loadedChunks.push(chunkData);
+    if (chunksToLoad.length > 0) {
+      debugLog(`📥 [CHUNK STREAMING] Loading/generating ${chunksToLoad.length} chunks...`);
+      for (const chunk of chunksToLoad) {
+        debugLog(`   ├─ Processing chunk (${chunk.x}, ${chunk.y})...`);
+        try {
+          const chunkData = await this.loadChunk(chunk.x, chunk.y);
+          if (chunkData) {
+            debugLog(`   └─ ✅ Got chunk (${chunk.x}, ${chunk.y}): ${chunkData.objects.length} objects`);
+            loadedChunks.push(chunkData);
+            chunksToRender.push(chunkData); // Newly loaded chunks need rendering
+          } else {
+            debugLog(`   └─ ⚠️ Failed to get chunk (${chunk.x}, ${chunk.y})`);
+          }
+        } catch (err) {
+          debugLog(`   └─ ❌ Error processing chunk (${chunk.x}, ${chunk.y}): ${err}`);
+        }
       }
+    } else {
+      debugLog(`✅ All required chunks already in memory`);
     }
 
     // Unload far chunks
     if (chunksToUnload.length > 0) {
-      console.log(`🗑️ [CHUNK STREAMING] Unloading ${chunksToUnload.length} far chunks...`);
+      debugLog(`🗑️ [CHUNK STREAMING] Unloading ${chunksToUnload.length} far chunks...`);
       for (const chunk of chunksToUnload) {
+        debugLog(`   ├─ Unloading chunk (${chunk.x}, ${chunk.y})`);
         this.unloadChunk(chunk.x, chunk.y);
       }
     }
 
+    debugLog(`✅ [CHUNK STREAMING] Complete - Loaded: ${loadedChunks.length}, ToRender: ${chunksToRender.length}, Unloaded: ${chunksToUnload.length}`);
+    
+    // Update current player chunk
+    this.currentPlayerChunk = { x: chunkX, y: chunkY };
+    
     return {
       loaded: loadedChunks,
+      toRender: chunksToRender, // Add this - chunks that need rendering
       unloaded: chunksToUnload
     };
   }
@@ -84,54 +117,62 @@ export class ChunkLoader {
     
     // Nếu đã load rồi thì return luôn
     if (this.loadedChunks.has(chunkKey)) {
+      debugLog(`📦 Chunk (${chunkX}, ${chunkY}) already loaded in memory`);
       return this.loadedChunks.get(chunkKey);
     }
 
     const chunkFileName = `chunk_${chunkX}_${chunkY}.bin`;
-    // Add cache busting timestamp
     const chunkPath = `/assets/Map/chunks/${chunkFileName}?t=${Date.now()}`;
 
     try {
+      debugLog(`🔍 Attempting to fetch chunk file: ${chunkPath}`);
       const response = await fetch(chunkPath);
+      
       if (response.status === 404) {
-        return this.generateEmptyChunk(chunkX, chunkY);
+        debugLog(`❌ Chunk file not found (404) - generating new chunk (${chunkX}, ${chunkY})`);
+        return await this.generateEmptyChunk(chunkX, chunkY);
       }
+      
       if (!response.ok) {
-        return this.generateEmptyChunk(chunkX, chunkY);
+        debugLog(`⚠️ Failed to fetch chunk (status ${response.status}) - generating new chunk (${chunkX}, ${chunkY})`);
+        return await this.generateEmptyChunk(chunkX, chunkY);
       }
 
       // Kiểm tra content type để đảm bảo là binary file
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
-        return this.generateEmptyChunk(chunkX, chunkY);
+        debugLog(`⚠️ Got HTML instead of binary - generating new chunk (${chunkX}, ${chunkY})`);
+        return await this.generateEmptyChunk(chunkX, chunkY);
       }
 
       const arrayBuffer = await response.arrayBuffer();
       
       // Kiểm tra kích thước file hợp lệ (ít nhất phải có header 24 bytes)
       if (arrayBuffer.byteLength < 24) {
-        console.warn(`⚠️ Chunk (${chunkX}, ${chunkY}) file too small - generating empty chunk`);
-        return this.generateEmptyChunk(chunkX, chunkY);
+        debugLog(`⚠️ Chunk (${chunkX}, ${chunkY}) file too small (${arrayBuffer.byteLength} bytes) - generating empty chunk`);
+        return await this.generateEmptyChunk(chunkX, chunkY);
       }
       
+      debugLog(`📖 Parsing chunk file (${arrayBuffer.byteLength} bytes)`);
       const chunkData = this.parseChunkBinary(arrayBuffer);
       
       this.loadedChunks.set(chunkKey, chunkData);
-      console.log(`✅ Chunk (${chunkX}, ${chunkY}) loaded: ${chunkData.objects.length} objects`);
+      debugLog(`✅ Chunk (${chunkX}, ${chunkY}) loaded from file: ${chunkData.objects.length} objects`);
       
       // Register chunk to server for collision detection
       await this.saveChunkToServer(chunkData);
       
       return chunkData;
     } catch (err) {
-      console.warn(`⚠️ Failed to load chunk (${chunkX}, ${chunkY}):`, err.message);
-      return this.generateEmptyChunk(chunkX, chunkY);
+      debugLog(`⚠️ Error loading chunk (${chunkX}, ${chunkY}): ${err.message}`);
+      debugLog(`🔨 Generating new chunk as fallback (${chunkX}, ${chunkY})`);
+      return await this.generateEmptyChunk(chunkX, chunkY);
     }
   }
 
   // Generate empty or procedural chunk when file doesn't exist
   async generateEmptyChunk(chunkX, chunkY) {
-    console.log(`🔨 Generating procedural chunk (${chunkX}, ${chunkY})`);
+    debugLog(`🔨 Generating procedural chunk (${chunkX}, ${chunkY})`);
     
     const objects = [];
     const width = 20;
@@ -140,64 +181,56 @@ export class ChunkLoader {
     // Track category counts for logging
     const categoryCounts = {};
     
-    // Procedurally generate ground tiles (gr1 or gr2)
+    // ── Ground tiles (driven by GROUND_TILES config) ──────────────────
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        // Random ground type: 70% gr1, 30% gr2
-        const groundType = Math.random() < 0.7 ? 'gr1' : 'gr2';
-        const path = `/assets/Map/topdown/${groundType}.png`;
-        
-        // Get categories for this object
-        const categories = getObjectCategories(path);
-        
-        // Count categories
+        const tile = pickRandomGroundTile();
+        const categories = getObjectCategories(tile.path);
         categories.forEach(cat => {
           categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         });
-        
         objects.push({
-          x: x,
-          y: y,
-          path: path,
+          x,
+          y,
+          path: tile.path,
           isFree: false,
           rotation: 0,
           scale: 1,
-          zIndex: 1,
+          zIndex: tile.zIndex,
           gridType: 'square',
-          placementLayer: 'ground',
-          categories: categories
+          placementLayer: tile.layer,
+          categories
+        });
+      }
+    }
+
+    // ── Scatter objects (driven by SCATTER_OBJECTS config) ────────────
+    for (const objDef of SCATTER_OBJECTS) {
+      const count = Math.floor(Math.random() * (objDef.maxCount - objDef.minCount + 1)) + objDef.minCount;
+      for (let i = 0; i < count; i++) {
+        const objX = Math.floor(Math.random() * width);
+        const objY = Math.floor(Math.random() * height);
+        const categories = getObjectCategories(objDef.path);
+        categories.forEach(cat => {
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        });
+        objects.push({
+          x: objX,
+          y: objY,
+          path: objDef.path,
+          isFree: false,
+          rotation: 0,
+          scale: 1,
+          zIndex: objDef.zIndex,
+          gridType: 'square',
+          placementLayer: objDef.layer,
+          categories
         });
       }
     }
     
-    // Add random desert objects (5-10 per chunk)
-    const numObjects = Math.floor(Math.random() * 6) + 5; // 5-10 objects
-    for (let i = 0; i < numObjects; i++) {
-      const objX = Math.floor(Math.random() * width);
-      const objY = Math.floor(Math.random() * height);
-      const objPath = '/assets/Object/desert/desert_obj_7.png';
-      
-      const categories = getObjectCategories(objPath);
-      categories.forEach(cat => {
-        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
-      });
-      
-      objects.push({
-        x: objX,
-        y: objY,
-        path: objPath,
-        isFree: false,
-        rotation: 0,
-        scale: 1,
-        zIndex: 100, // Higher z-index for objects
-        gridType: 'square',
-        placementLayer: 'object',
-        categories: categories
-      });
-    }
-    
-    console.log(`✅ Generated ${objects.length} objects for chunk (${chunkX}, ${chunkY})`);
-    console.log(`📊 Category distribution in chunk (${chunkX}, ${chunkY}):`, categoryCounts);
+    debugLog(`✅ Generated ${objects.length} objects for chunk (${chunkX}, ${chunkY})`);
+    debugLog(`📊 Category distribution in chunk (${chunkX}, ${chunkY}): ${JSON.stringify(categoryCounts)}`);
     
     const chunkData = {
       chunkX,
@@ -221,7 +254,7 @@ export class ChunkLoader {
   // Save generated chunk to server as binary file
   async saveChunkToServer(chunkData) {
     try {
-      console.log(`💾 Saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}) to server...`);
+      debugLog(`💾 Saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}) to server...`);
       
       const response = await fetch('http://localhost:3000/save-chunk', {
         method: 'POST',
@@ -231,12 +264,12 @@ export class ChunkLoader {
       
       const result = await response.json();
       if (result.success) {
-        console.log(`✅ Chunk (${chunkData.chunkX}, ${chunkData.chunkY}) saved: ${result.fileName} (${result.size})`);
+        debugLog(`✅ Chunk (${chunkData.chunkX}, ${chunkData.chunkY}) saved: ${result.fileName} (${result.size})`);
       } else {
-        console.error(`❌ Failed to save chunk:`, result.error);
+        debugLog(`❌ Failed to save chunk: ${result.error}`);
       }
     } catch (err) {
-      console.error(`❌ Error saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}):`, err.message);
+      debugLog(`❌ Error saving chunk (${chunkData.chunkX}, ${chunkData.chunkY}): ${err.message}`);
     }
   }
 
@@ -315,6 +348,7 @@ export class ChunkLoader {
     const chunkKey = `${chunkX},${chunkY}`;
     if (this.loadedChunks.has(chunkKey)) {
       this.loadedChunks.delete(chunkKey);
+      this.renderedChunks.delete(chunkKey);
       console.log(`🗑️  Unloaded chunk (${chunkX}, ${chunkY})`);
     }
   }

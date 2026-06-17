@@ -15,6 +15,7 @@ import { setupGameLoop } from './helpers/gameLoopHelper.js';
 import { setupAuthAndCharacterManagement } from './helpers/authHelper.js';
 import { setupInputListeners } from './helpers/inputHelper.js';
 import { setupFpsCounter } from './helpers/uiHelper.js';
+import { initDebugHelper, debugLog } from './helpers/debugHelper.js';
 
 
 
@@ -24,6 +25,11 @@ import { setupFpsCounter } from './helpers/uiHelper.js';
     // 0. Kết nối WebSocket
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
     const socket = io(SOCKET_URL);
+    
+    // Initialize debug helper to send logs to server
+    initDebugHelper(socket);
+    debugLog('🎮 [GAME] Starting game initialization...');
+
     const otherPlayers = {}; // Lưu trữ container của người chơi khác
     const collidableObjects = []; // Lưu trữ các vật thể có va chạm
     const objectSprites = []; // Lưu trữ sprites của objects để depth sorting

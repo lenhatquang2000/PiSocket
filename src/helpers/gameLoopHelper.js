@@ -169,6 +169,7 @@ export function setupGameLoop(app, {
 
         // Update lastSentData and auto-load chunks
         if (moved) {
+            console.log(`🎮 [GAME LOOP] Player moved - calling streamChunksHelper at (${characterContainer.x}, ${characterContainer.y})`);
             loopContext.lastSentData = { 
                 x: characterContainer.x, 
                 y: characterContainer.y, 

@@ -12,6 +12,32 @@ export async function renderChunk(chunkData, world, objectSprites, collidableObj
   console.log(`   Chunk world position: (${chunkWorldX}, ${chunkWorldY})`);
 
   let renderedCount = 0;
+  let loadedAssetCount = 0;
+  
+  // Collect unique asset paths that need loading
+  const uniquePaths = new Set();
+  for (const obj of chunkData.objects) {
+    uniquePaths.add(obj.path);
+  }
+  
+  // Pre-load any missing assets
+  const assetsToLoad = [];
+  for (const path of uniquePaths) {
+    if (!Assets.get(path)) {
+      assetsToLoad.push(path);
+    }
+  }
+  
+  if (assetsToLoad.length > 0) {
+    console.log(`📦 [CHUNK RENDER] Pre-loading ${assetsToLoad.length} missing assets...`);
+    try {
+      await Promise.all(assetsToLoad.map(path => Assets.load(path)));
+      loadedAssetCount = assetsToLoad.length;
+      console.log(`✅ [CHUNK RENDER] Loaded ${loadedAssetCount} missing assets`);
+    } catch (err) {
+      console.error(`❌ [CHUNK RENDER] Error pre-loading assets:`, err);
+    }
+  }
 
   for (const obj of chunkData.objects) {
     const objTexture = Assets.get(obj.path);
@@ -114,7 +140,7 @@ export async function renderChunk(chunkData, world, objectSprites, collidableObj
     renderedCount++;
   }
 
-  console.log(`✅ [CHUNK RENDER] Rendered ${renderedCount} objects from chunk (${chunkData.chunkX}, ${chunkData.chunkY})`);
+  console.log(`✅ [CHUNK RENDER] Rendered ${renderedCount}/${chunkData.objects.length} objects from chunk (${chunkData.chunkX}, ${chunkData.chunkY})`);
 }
 
 // Unload chunk - remove all sprites and collision data from a chunk

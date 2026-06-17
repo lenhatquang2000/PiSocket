@@ -1234,6 +1234,11 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("A player connected:", socket.id);
 
+  // Client debug logs listener
+  socket.on("client-debug-log", (data) => {
+    console.log(`[CLIENT ${socket.id}] ${data.message}`);
+  });
+
   // Chỉ khi người chơi nhấn nút "Tạo nhân vật" (gửi newPlayer)
   socket.on("newPlayer", (playerData) => {
     // 1. Lưu dữ liệu người chơi mới với stats
